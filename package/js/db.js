@@ -1,7 +1,7 @@
 /**
  * Created by Administrator on 2016/4/15.
  */
-var serverUrl="http://localhost:8080/MDSRealrig/";
+var serverUrl="http://localhost:8080/fileReceiver/";
 var userKey="";
 var userId="0";
 var db;
@@ -24,7 +24,7 @@ function initDB(){
     request.onupgradeneeded=function(event){
         db=event.target.result;
         if(!db.objectStoreNames.contains('user')){
-            //key,name,username,initTime，maxFileSize（M）,maxThread,serverUrl
+            //key,name,username,initTime，maxFileSize（M）,maxThread,serverUrl，tempWorkDir
             store=db.createObjectStore('user',{keyPath:"id"});
             store.createIndex('nameIndex','name',{unique:true});
         }
@@ -79,6 +79,8 @@ function handleUserData(table,data){
     }else{
         var newData={
             id:"0",
+            maxFileSize:1,
+            maxThread:5,
             initTime:new Date().toDateString(),
             serverUrl:serverUrl
         }
@@ -93,6 +95,12 @@ function updateDbServerUrl(table,key){
         var data=e.target.result;
         data.serverUrl=serverUrl;
         store.put(data);
+    };
+}
+function insertData(table,data,callbackFunc){
+    var request=db.transaction(table,'readwrite').objectStore(table).put(data);
+    request.onsuccess=function(e){
+        callbackFunc();
     };
 }
 function deleteDataByKey(table,key){
@@ -125,13 +133,24 @@ function login(){
             if(json.result){
                 if(userId==="0"){
                     //@todo
-                    // 1.删除此key
-                    // 2. 存入db
+                    deleteDataByKey("user",userKey);
+                    var newData={
+                        id:json.id,
+                        username:json.username,
+                        name:json.name,
+                        maxFileSize:1,
+                        maxThread:5,
+                        initTime:new Date().toDateString(),
+                        serverUrl:serverUrl
+                    }
+                    insertData("user",newData,function(){
+                        window.location.href="index.html";
+                    });
                 }
+            }else{
+                console.log(resp.body);
             }
         }
 
     });
-
-   // window.location.href="index2.html";
 }
