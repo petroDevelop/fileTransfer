@@ -13,7 +13,9 @@
     <script type="text/javascript" src="js/atlant-html/js/plugins/fileinput/fileinput.min.js"></script>
 
     <script type="text/javascript" src="js/atlant-html/js/plugins/datatables/jquery.dataTables.min.js"></script>
-
+    <script type="text/javascript" src="js/db.js"></script>
+    <link rel="stylesheet" href="js/toolbar/style.css">
+    <script type="text/javascript" src="js/toolbar/titlebar.js"></script>
     <script>
 
         var fs = require('fs');
@@ -360,7 +362,14 @@
 </table>
 
 
+<script>
+    var gui = require("nw.gui");
+    gui.Window.get().maximize();
+    gui.Window.get().show();
+    addTitlebar("right-titlebar", "right-titlebar.png", "文件传输系统客户端");
+    focusTitlebars(true);
 
+</script>
 
 </body>
 </html>
