@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>index</title>
+
+    <link rel="stylesheet" type="text/css" id="theme" href="js/atlant-html/css/theme-default.css"/>
+    <!-- START PLUGINS -->
+    <script type="text/javascript" src="js/atlant-html/js/plugins/jquery/jquery.min.js"></script>
+
+    <script type="text/javascript" src="js/atlant-html/js/plugins/bootstrap/bootstrap.min.js"></script>
+    <!-- END PLUGINS -->
+    <script type="text/javascript" src="js/atlant-html/js/plugins/fileinput/fileinput.min.js"></script>
+
+
+    <script>
+
+        var fs = require('fs');
+        var needle = require('needle');
+        var async = require('async');
+        function join(){
+
+            for(var i=0;i<80;i++){
+                fs.appendFileSync("1.zip",fs.readFileSync("1.zip"+"."+i));
+            }
+            alert('ok');
+        }
+        function split(){
+            //var split = require('binary-split')
+
+            var dataArr = [];
+            var len = 0;
+            var fileSplitIndex=0;
+            fs.createReadStream('chromedriver.exe')
+                    .on('data',function(chunk){
+                        len+=chunk.length;
+                        if(len<1024*1024*1){
+
+                        }else{
+                            len=0;
+                            fileSplitIndex++;
+                        }
+                        if(!fs.existsSync(nw.App.dataPath+"/fileFolder/")){
+                            fs.mkdirSync(nw.App.dataPath+"/fileFolder/");
+                        }
+                        fs.appendFileSync(nw.App.dataPath+"/fileFolder/chromedriver.exe."+fileSplitIndex,chunk);
+                    })
+                    .on("end", function () {
+                        alert("over");
+                    });
+        }
+        function asyncFunc(){
+            /**
+             * 定义一个queue，设worker数量为5
+             */
+            var q = async.queue(function(task, callback) {
+                console.log('worker is processing task: ', task.name);
+                task.run(callback);
+            }, 5);
+
+            /**
+             * 监听：如果某次push操作后，任务数将达到或超过worker数量时，将调用该函数
+             */
+            q.saturated = function() {
+                console.log('all workers to be used');
+            }
+
+            /**
+             * 监听：当最后一个任务交给worker时，将调用该函数
+             */
+            q.empty = function() {
+                console.log('no more tasks waiting');
+            }
+
+            /**
+             * 监听：当所有任务都执行完以后，将调用该函数
+             */
+            q.drain = function() {
+                console.log('all tasks have been processed');
+            }
+            q.push({name:'t1', run: function(cb){
+                //post file
+                console.log('t1 is running, waiting tasks: ', q.length());
+            }}, function(err) {
+                console.log('t1 executed');
+            });
+            q.push([
+                {
+                    name:'t3', run: function(cb){
+                    //post file
+                    console.log('t3 is running, waiting tasks: ', q.length());
+
+                }
+                },{
+                    name:'t4', run: function(cb){
+                        //post file
+                        console.log('t4 is running, waiting tasks: ', q.length());
+
+                    }
+                },{
+                    name:'t5', run: function(cb){
+                        //post file
+                        console.log('t5 is running, waiting tasks: ', q.length());
+
+                    }
+                },{
+                    name:'t6', run: function(cb){
+                        //post file
+                        console.log('t6 is running, waiting tasks: ', q.length());
+
+                    }
+                }
+            ], function(err) {
+                console.log('err: ',err);
+            });
+        }
+        function post(){
+            var data = {
+                file: 'package.json',
+                name:'china',
+                content_type: 'image/png',
+                uploadFile: { file: 'package.json', content_type: 'image/png' }
+            };
+            //needle.post('url', 'foo=bar', {}, function(err, resp) {} 服务器的params 获取foo:bar
+            //
+            needle.post('http://localhost:8080/crowdfunding/login/r1', data, { multipart: true }, function(err, resp) {
+                // you can pass params as a string or as an object.
+                if (!err && resp.statusCode == 200){
+                    console.log(resp.body);
+                }
+
+            });
+        }
+        function initDB(){
+            var dbName="fileTransfer";
+            var dbVersion = 1;
+            var db;
+            var store;
+            var request = window.indexedDB.open(dbName, dbVersion);
+            request.onsuccess = function (event) {
+                console.log("Success creating/accessing IndexedDB database");
+                db =event.target.result; //request.result;@todo fix it
+            };
+            request.onerror=function(event){
+                console.log("Error creating/accessing IndexedDB database");
+            };
+            request.onupgradeneeded=function(event){
+                db=event.target.result;
+                if(!db.objectStoreNames.contains('well')){
+                    //key,name,username,initTime，maxFileSize（M）,maxThread
+                    store=db.createObjectStore('well',{keyPath:"id"});
+                    store.createIndex('nameIndex','name',{unique:true});
+                }
+                if(!db.objectStoreNames.contains('file')){
+                    //key,name,path,size,splitStartNum,splitEndNum,status(split,upload,finish),md5,dateCreated,lastUpdated
+                    store=db.createObjectStore('file',{autoIncrement: true});
+                    store.createIndex('nameIndex','name',{unique:false});
+                }
+                if(!db.objectStoreNames.contains('block')){
+                    //key,name,index,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
+                    store=db.createObjectStore('block',{autoIncrement: true});
+                    store.createIndex('nameIndex','name',{unique:false});
+                }
+                console.log('DB version changed to '+dbVersion);
+            };
+
+
+        }
+        function closeDB(db){
+            db.close();
+        }
+        function deleteDB(){
+            var dbName="fileTransfer";
+            window.indexedDB.deleteDatabase(dbName);
+        }
+        function addData(){
+            var fileData={
+                "num":-1,
+                "id":'',
+                "name": 'name',
+                "size": "1M",
+                "path": "/usr/abc",
+                "status": "",
+                "time": new Date()
+            }
+            addFileData(fileData,function(data,id){
+                data.id=id;
+                $('#fileTable').DataTable().row.add(data).draw();
+            });
+        }
+        function addFileData(data,callback){
+            var dbName="fileTransfer";
+            var dbVersion = 1;
+            var db;
+            var store;
+            var request = window.indexedDB.open(dbName, dbVersion);
+            request.onsuccess = function (event) {
+                db = request.result;
+                var transaction=db.transaction('file','readwrite');
+                var store=transaction.objectStore('file');
+                var objectStoreRequest = store.add(data);
+                objectStoreRequest.onsuccess = function(e1) {
+                    var id=e1.target.result;
+                    callback(data,id);
+                    //return fileId; //id
+                }
+            };
+            request.onerror=function(event){
+                console.log("Error creating/accessing IndexedDB database");
+            };
+            request.onupgradeneeded=function(event){
+                console.log('DB version changed to '+dbVersion);
+            };
+
+        }
+
+        function saveWellInfo(){
+
+        }
+        function insertOneFile(){
+
+        }
+        function statFile(){
+            var states = fs.statSync("chromedriver.exe");
+            console.log(states.size);
+        }
+        function md5(){
+            var crypto = require("crypto");
+            var buf=fs.readFileSync("chromedriver.exe");
+            var str = buf.toString("binary");
+            console.log(crypto.createHash("md5").update(str).digest("hex"));
+        }
+        function dropOneFile(id){
+            //@todo:indexDB drop one file
+        }
+        function  beginTransFer(){
+
+        }
+        $(function() {
+            $("#fileSimple").fileinput({
+                showRemove:false,
+                showPreview:false,
+                showUpload: false,
+                showCaption: false,
+                browseClass: "btn btn-danger",
+                browseLabel: '选择文件...',
+                fileType: "any"
+            });
+            $('#fileSimple').on('fileselect', function(event, numFiles, label) {
+                //  @todo 存入indexDB
+                var files = event.target.files;
+                for (var fileIndex=0;fileIndex<files.length;fileIndex++) {
+                    var file=files[fileIndex];
+                    var fileId=0;
+                    var fileData={
+                        "id":'',
+                        "name": file.name,
+                        "size": parseInt(file.size/(1024*1024))+"M",
+                        "path": file.path,
+                        "status": "",
+                        "time": file.lastModifiedDate,
+                        "progress":0
+                    }
+                    addFileData(fileData,function(data,id){
+                        data.id=id;
+                        $('#fileTable').DataTable().row.add(data).draw();
+                    });
+
+
+                 }
+
+
+            });
+
+            var dt=$("#fileTable").DataTable( {
+                columns: [
+                    {data:'id', title:'ID',orderable: false,searchable:false},
+                    { data: 'name',title:'文件名称',orderable: false,searchable:false },
+                    { data: 'size',title:'文件大小',orderable: false,searchable:false },
+                    { data: 'path',title:'路径',orderable: false,searchable:false },
+                    { data: 'status',title:'状态',orderable: false,searchable:false },
+                    { data: 'progress',title:'进度',orderable: false,searchable:false, render: function ( data, type, rowData, meta ) {
+                        return '<a class="deleteControl" dataId="'+rowData.id+'"><span class="fa fa-times" style="cursor: pointer;color:red;" title="删除"></span></a>';
+                    } },
+                    { title:'操作',orderable: false, render: function ( data, type, rowData, meta ) {
+                        //var option = '<a ><span class="fa fa-eye" style="cursor: pointer;color:green;" title="编辑"></span></a>';
+                        var option  =  '<a class="deleteControl" dataId="'+rowData.id+'"><span class="fa fa-times" style="cursor: pointer;color:red;" title="删除"></span></a>'
+                        return option;
+                    } }
+
+                ],
+/*                rowCallback:function( row, data, index ) {
+                    $('td:eq(0)', row).html(index);
+                },*/
+                searching: true,
+                paging: true,
+                ordering: true,
+                order:[1,'asc'],
+                oLanguage : {
+                    sLengthMenu: "每页显示 _MENU_ 条记录",
+                    sZeroRecords: "抱歉， 没有找到",
+                    sInfo: "从 _START_ 到 _END_ /共 _TOTAL_ 条数据",
+                    sInfoEmpty: "没有数据",
+                    sInfoFiltered: "(从 _MAX_ 条数据中检索)",
+                    sZeroRecords: "没有检索到数据",
+                    sSearch: "名称:",
+                    oPaginate: {
+                        sFirst: "首页",
+                        sPrevious: "上一页",
+                        sNext: "下一页",
+                        sLast: "末页"
+                    }
+                }
+            });
+            $('#fileTable tbody').on('click','tr td a.deleteControl',function (){
+                var tr = $(this).closest('tr');
+                dropOneFile($(this).attr('dataId'));
+                dt.row(tr).remove().draw();
+            } );
+        });
+    </script>
+    <style>
+        input[type=search]{
+
+            background-color: transparent;
+            border: none;
+            border-bottom: 0px solid #9e9e9e;
+
+            height: 2rem;
+            margin: 0 0 0 0;
+            padding: 0;
+
+        }
+    </style>
+</head>
+<body>
+<input type="button" value="split" onclick="split()"/>
+<input type="button" value="join" onclick="join()"/>
+<input type="button" value="post" onclick="post()"/>
+<input type="button" value="initDB" onclick="initDB()"/>
+<input type="button" value="addFileData" onclick="addData()"/>
+<input type="button" value="deleteDB" onclick="deleteDB()"/>
+<input type="button" value="md5" onclick="md5()"/>
+<input type="button" value="统计文件状态" onclick="statFile()"/>
+<input type="button" value="多线程同步" onclick="asyncFunc()"/>
+<p/>
+1.在线登录<p/>
+2.成功后，初始化本地db ,创建记录（名，用户名，new Date(),1,5）<p/>
+3.选择多文件 （表格倒序排列文件）<p/>
+4.点击“开始传送”<p/>
+  4.1 切分文件，保存在{app.dataPath}/fileTransfer/${file.id}/<p/>
+  4.2 多线程传送文件<p/>
+  4.3 会写状态<p/>
+
+<p/>
+<input type="file" multiple class="btn btn-danger"  id="fileSimple"/>
+<input type="button"   class="btn btn-danger" onclick="beginTransFer()" value="开始传送" id="fileUpload"/>
+<table id="fileTable" class="table datatable">
+</table>
+
+
+
+
+</body>
+</html>

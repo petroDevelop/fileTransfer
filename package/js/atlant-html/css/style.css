@@ -1,0 +1,31 @@
+*{ margin:0; padding:0;}
+body{ font-family:"微软雅黑";}
+.red{color:red;}
+.x-one{ width:755px;  border-left:1px solid #e9e9e9; padding-left:34px; padding-bottom:26px; margin:0 auto; position: relative;}
+.x-two{ width:755px; border-left:1px solid #e9e9e9; padding-left:34px; padding-bottom:26px; margin:0 auto; position: relative;}
+.x-three{ width:755px; border-left:1px solid #e9e9e9; padding-left:34px; padding-bottom:26px; margin:0 auto; position: relative;}
+.x-four{ width:755px; border-left:1px solid #e9e9e9; padding-left:34px; padding-bottom:26px; margin:0 auto; position: relative;}
+.x-five{ width:755px; border-left:1px solid #e9e9e9; padding-left:34px; padding-bottom:26px; margin:0 auto; position: relative;}
+.x-six{ width:755px; border-left:1px solid #e9e9e9; padding-left:34px; margin:0 auto; position: relative;}
+.x-title{ width:738px; height:48px; line-height:48px; background:#94afdc; color:#FFF; font-size:18px; padding-left:17px; border-bottom:1px dashed #707ea5;}
+.x-number{ position:absolute; left:-30px; top:-3px;}
+.x-sub1{ width:738px; border:1px solid #dbdfeb; background:#fafafa; padding:15px 17px 20px 17px;}
+.x-sub2{ width:738px; border:1px solid #dbdfeb; background:#fafafa; padding:33px 17px}
+.x-sub3{ width:738px; border:1px solid #dbdfeb; background:#fafafa; padding:15px 17px 20px 17px;}
+.x-sub4{ width:738px; border:1px solid #dbdfeb; background:#fafafa; padding:33px 17px}
+.x-sub5{ width:738px; border:1px solid #dbdfeb; background:#fafafa; padding:15px 17px 20px 17px;}
+.x-sub6{ width:738px; border:1px solid #dbdfeb; background:#fafafa; padding:15px 17px 20px 17px;}
+.x-Long{ width:613px; height:30px; /*border:1px solid #fe8141;*/ outline:none;}
+.x-Short{ width:340px; height:30px; border:1px solid #cbd1e2; outline:none;}
+.x-input-Text{ width:613px; height:139px; border:1px solid #cbd1e2; outline:none;}
+.x-duan{ width:253px; height:30px; border:1px solid #cbd1e2; outline:none; float:left;}
+.x-p-name{font-size:16px; color:#303e63; padding-top:10px; padding-bottom:6px; margin:0; }
+.x-and-button{ width:110px; height:30px; background:#f39500; border:0; font-size:14px; color:#FFF; margin-left:97px; margin-top:18px;}
+.x-button{ width:67px; height:30px; background:#f39500; border:0; font-size:14px; color:#FFF; margin:5px 0 20px 21px;}
+.page-content-wrap{ background:#FFF; padding-top:66px; padding-bottom:57px;}
+.lian_xi{ font-size:16px; color:#303e63; padding-top:6px; padding-bottom:6px; margin:0; float:left;}
+.ju_shang{ margin-top:8px;}
+.mar-t-b{ margin:5px 0;}
+.mar-r{ margin-right:18px;}
+.check{ margin-right:15px;}
+.x-box{ margin-left:5px;}
