@@ -40,7 +40,7 @@ function initDB(){
             store.createIndex('nameIndex','name',{unique:false});
         }
         if(!db.objectStoreNames.contains('block')){
-            //key,name,index,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
+            //key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
             store=db.createObjectStore('block',{autoIncrement: true});
             store.createIndex('nameIndex','name',{unique:false});
         }
