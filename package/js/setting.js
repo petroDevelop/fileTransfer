@@ -84,18 +84,7 @@ $(function() {
         dt.row(tr).remove().draw();
     } );
 
-    if($(".select").length > 0){
-        $(".select").selectpicker();
-
-        $(".select").on("change", function(){
-            if($(this).val() == "" || null === $(this).val()){
-                if(!$(this).attr("multiple"))
-                    $(this).val("").find("option").removeAttr("selected").prop("selected",false);
-            }else{
-                $(this).find("option[value="+$(this).val()+"]").attr("selected",true);
-            }
-        });
-    }
+    
     getUserInfo();
 });
 

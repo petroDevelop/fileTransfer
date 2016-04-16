@@ -137,6 +137,26 @@ function getUserInfo(){
                 serverUrl=data[0].serverUrl;
                 needle.post(serverUrl+"microseism/catchProjects", 'id='+userId, {}, function(err, resp) {
                     var json=resp.body;
+                    if(json == null)return;
+                    for(key in json)
+                    {
+                        var project = json[key];
+                        var child = "<option value='"+ project.id +"' data-id='" + project.id + "' data-name='" + project.name + "' data-rigName='" + project.rigName+"'>" +  project.name + "</option>";
+                        $("#projectSelect").append(child);
+                    }
+                    // $('.selectpicker').selectpicker('refresh');
+                    if($(".select").length > 0){
+                        $(".select").selectpicker({dropupAuto:false,size:6});
+
+                        $(".select").on("change", function(){
+                            if($(this).val() == "" || null === $(this).val()){
+                                if(!$(this).attr("multiple"))
+                                    $(this).val("").find("option").removeAttr("selected").prop("selected",false);
+                            }else{
+                                $(this).find("option[value="+$(this).val()+"]").attr("selected",true);
+                            }
+                        });
+                    }
                 });
             }
         }
