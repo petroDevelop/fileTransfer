@@ -4,6 +4,9 @@
 var serverUrl="http://localhost:8080/fileReceiver/";
 var userKey="";
 var userId="0";
+var maxFileSize=1;
+var maxThread=5;
+var tempWorkDir="";
 var db;
 
 var fs = require('fs');
@@ -106,10 +109,13 @@ function insertData(table,data,callbackFunc){
         callbackFunc();
     };
 }
-function deleteDataByKey(table,key){
+function deleteDataByKey(table,key,callbackFunc){
     var transaction=db.transaction(table,'readwrite');
     var store=transaction.objectStore(table);
-    store.delete(key);
+    var request=store.delete(key);
+    request.onsuccess = function (event) {
+        callbackFunc();
+    }
 }
 function getUserInfo(){
     var dbName="fileTransfer";
@@ -135,6 +141,9 @@ function getUserInfo(){
                 userId=data[0].id;
                 userKey=data[0].key;
                 serverUrl=data[0].serverUrl;
+                maxFileSize=data[0].maxFileSize;
+                maxThread=data[0].maxThread;
+                tempWorkDir=data[0].tempWorkDir+"/";
                 needle.post(serverUrl+"microseism/catchProjects", 'id='+userId, {}, function(err, resp) {
                     var json=resp.body;
                     if(json == null)return;
@@ -184,19 +193,22 @@ function login(){
             var json=resp.body;
             if(json.result){
                 if(userId==="0"){
-                    deleteDataByKey("user",userKey);
-                    var newData={
-                        id:json.id,
-                        username:json.username,
-                        name:json.name,
-                        maxFileSize:1,
-                        maxThread:5,
-                        initTime:new Date().toDateString(),
-                        serverUrl:serverUrl
-                    }
-                    insertData("user",newData,function(){
-                        window.location.href="index.html";
+                    deleteDataByKey("user",userKey,function(){
+                        var newData={
+                            id:json.id,
+                            username:json.username,
+                            name:json.name,
+                            maxFileSize:1,
+                            maxThread:5,
+                            initTime:new Date().toDateString(),
+                            serverUrl:serverUrl,
+                            tempWorkDir:nw.App.dataPath
+                        }
+                        insertData("user",newData,function(){
+                            window.location.href="index.html";
+                        });
                     });
+
                 }
             }else{
                 console.log(resp.body);
@@ -206,9 +218,17 @@ function login(){
     });
 }
 function addFileData(data,callback){
+    var transaction=db.transaction('file','readwrite');
+    var store=transaction.objectStore('file');
+    var objectStoreRequest = store.add(data);
+    objectStoreRequest.onsuccess = function(e1) {
+        var key=e1.target.result;
+        callback(data,key);
+    }
+    /*
     var dbName="fileTransfer";
     var dbVersion = 1;
-    var db;
+    //var db;
     var store;
     var request = window.indexedDB.open(dbName, dbVersion);
     request.onsuccess = function (event) {
@@ -217,8 +237,8 @@ function addFileData(data,callback){
         var store=transaction.objectStore('file');
         var objectStoreRequest = store.add(data);
         objectStoreRequest.onsuccess = function(e1) {
-            var id=e1.target.result;
-            callback(data,id);
+            var key=e1.target.result;
+            callback(data,key);
             //return fileId; //id
         }
     };
@@ -228,9 +248,118 @@ function addFileData(data,callback){
     request.onupgradeneeded=function(event){
         console.log('DB version changed to '+dbVersion);
     };
+    */
 
 }
-function dropOneFile(id){
-    //@todo:indexDB drop one file
+function dropOneFile(key){
+    var transaction=db.transaction('file','readwrite');
+    var store=transaction.objectStore('file');
+    var request =store.delete(parseInt(key));
+    request.onsuccess = function (event) {
+        console.log("dropOneFile sucess="+key);
+    }
+}
 
+function beginTransFer(){
+    //table内的文件
+        //切分 存入block
+        //将此文件信息发送至服务器
+        //开始 发送小文件 //成功后，更新本地block表
+        //发送合并请求
+        //更改文件状态
+    var table=$("#fileTable").DataTable();
+    var data=table.data();
+    var finishNum=0;
+    data.each( function (d) {
+        if(d.status==""){
+            splitFile(d,function(){
+                //@todo 计算 是否全部完成
+                finishNum++;
+                if(finishNum==data.length){
+                    //@ todo
+                    uploadFiles(data);
+                }
+            });
+        }
+    } );
+    data.each( function (d) {
+        d.status="split";
+    } );
+    table.clear().draw();
+    data.each(function (d) {
+        $('#fileTable').DataTable().row.add(d).draw();
+    } );
+
+}
+function uploadFiles(data){
+    var index=0;
+    uploadFile(index,data,finishOneFile);
+}
+function uploadFile(index,data,callbackFunc){
+    var one=data[index];
+    var q = async.queue(function(task, callback) {
+        //console.log('worker is processing task: ', task.name);
+        task.run(callback);
+    }, maxThread);
+    q.saturated = function() {
+        //console.log('all workers to be used');
+    }
+    q.empty = function() {
+        //console.log('no more tasks waiting');
+    }
+    q.drain = function() {
+        //console.log('all tasks have been processed');
+        //@todo 修改 @ finish 文件状态
+        // 清除temp
+        callbackFunc(index,data);
+    }
+    var array=[];
+    //@todo one 读取 block 地址
+    q.push([
+        {
+            name:'t3', run: function(cb){
+                //task -- block
+                //needle post
+                //@todo block 状态 //db状态
+
+            }
+        }
+    ], function(err) {
+        //console.log('err: ',err);
+    });
+}
+function finishOneFile(index,data){
+    index++;
+    if(index<data.length){
+        uploadFile(index,data,finishOneFile);
+    }else{
+        //todo 表格状态文件更改
+
+    }
+}
+function splitFile(data,callbackFunc){
+    var len = 0;
+    var fileSplitIndex=0;
+    fs.createReadStream(data.path)
+        .on('data',function(chunk){
+            len+=chunk.length;
+            if(len<1024*1024*maxFileSize){
+
+            }else{
+                len=0;
+                fileSplitIndex++;
+            }
+            if(!fs.existsSync(tempWorkDir+"fileFolder/")){
+                fs.mkdirSync(tempWorkDir+"fileFolder/");
+            }
+            fs.appendFileSync(tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,chunk);
+        })
+        .on("end", function () {
+            //
+            data.splitStartNum=0;
+            data.splitEndNum=fileSplitIndex;
+            //@todo file db 同步
+            //@todo 切分 存入block //上传
+            callbackFunc();
+        });
 }
