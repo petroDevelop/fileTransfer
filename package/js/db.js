@@ -5,7 +5,10 @@ var serverUrl="http://localhost:8080/fileReceiver/";
 var userKey="";
 var userId="0";
 var db;
+
+var fs = require('fs');
 var needle = require('needle');
+var async = require('async');
 function initDB(){
     var dbName="fileTransfer";
     var dbVersion = 1;
@@ -153,4 +156,32 @@ function login(){
         }
 
     });
+}
+function addFileData(data,callback){
+    var dbName="fileTransfer";
+    var dbVersion = 1;
+    var db;
+    var store;
+    var request = window.indexedDB.open(dbName, dbVersion);
+    request.onsuccess = function (event) {
+        db = request.result;
+        var transaction=db.transaction('file','readwrite');
+        var store=transaction.objectStore('file');
+        var objectStoreRequest = store.add(data);
+        objectStoreRequest.onsuccess = function(e1) {
+            var id=e1.target.result;
+            callback(data,id);
+            //return fileId; //id
+        }
+    };
+    request.onerror=function(event){
+        console.log("Error creating/accessing IndexedDB database");
+    };
+    request.onupgradeneeded=function(event){
+        console.log('DB version changed to '+dbVersion);
+    };
+
+}
+function dropOneFile(id){
+    //@todo:indexDB drop one file
 }
