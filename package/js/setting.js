@@ -12,13 +12,18 @@ $(function() {
         fileType: "any"
     });
     $('#fileSimple').on('fileselect', function(event, numFiles, label) {
-        //  @todo 存入indexDB
         var files = event.target.files;
+        console.log($('#projectSelect').val());
+        console.log($("#projectSelect").find("option:selected").text());
+        console.log($("#projectSelect").find("option:selected").attr("data-rigName"));
         for (var fileIndex=0;fileIndex<files.length;fileIndex++) {
             var file=files[fileIndex];
             var fileId=0;
             var fileData={
                 "id":'',
+                "projectId":"",
+                "projectName":"",
+                "rigName":"",
                 "name": file.name,
                 "size": parseInt(file.size/(1024*1024))+"M",
                 "path": file.path,
@@ -30,10 +35,7 @@ $(function() {
                 data.id=id;
                 $('#fileTable').DataTable().row.add(data).draw();
             });
-
-
         }
-
 
     });
     var dt=$("#fileTable").DataTable( {
@@ -94,5 +96,6 @@ $(function() {
             }
         });
     }
+    getUserInfo();
 });
 

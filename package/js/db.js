@@ -111,7 +111,37 @@ function deleteDataByKey(table,key){
     var store=transaction.objectStore(table);
     store.delete(key);
 }
-
+function getUserInfo(){
+    var dbName="fileTransfer";
+    var dbVersion = 1;
+    var store;
+    var request = window.indexedDB.open(dbName, dbVersion);
+    request.onsuccess = function (event) {
+        console.log("Success creating/accessing IndexedDB database");
+        db =event.target.result;  ;
+        var transaction = db.transaction("user");
+        var objectStore = transaction.objectStore("user");
+        var data = new Array();
+        objectStore.openCursor().onsuccess = function(event) {
+            var cursor = event.target.result;
+            if (cursor) {
+                var key = cursor.key;
+                var rowData = cursor.value;
+                rowData.key=key;
+                //var jsonStr = JSON.stringify(cursor.value);
+                cursor.continue();
+                data.push(rowData);
+            }else{
+                userId=data[0].id;
+                userKey=data[0].key;
+                serverUrl=data[0].serverUrl;
+                needle.post(serverUrl+"microseism/catchProjects", 'id='+userId, {}, function(err, resp) {
+                    var json=resp.body;
+                });
+            }
+        }
+    };
+}
 
 function changeServerUrl(){
     var name=prompt("请设置服务器地:",serverUrl);
@@ -123,11 +153,10 @@ function changeServerUrl(){
 function login(){
     var username=$('#username').val();
     var password=$('#password').val();
+    //@todo cookie
 /*    needle.post('http://localhost:8080/MDSRealrig', 'foo=bar', {}, function(err, resp) {
         console.log(resp.cookies);
     });*/
-
-
     needle.post(serverUrl+'login/clientLogin', "username="+username+"&password="+password, {}, function(err, resp) {
         // you can pass params as a string or as an object.
         if (!err && resp.statusCode == 200){
@@ -135,7 +164,6 @@ function login(){
             var json=resp.body;
             if(json.result){
                 if(userId==="0"){
-                    //@todo
                     deleteDataByKey("user",userKey);
                     var newData={
                         id:json.id,
@@ -184,4 +212,5 @@ function addFileData(data,callback){
 }
 function dropOneFile(id){
     //@todo:indexDB drop one file
+
 }

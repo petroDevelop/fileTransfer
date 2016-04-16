@@ -131,7 +131,11 @@
                                 <label class="col-sm-3 control-label">选择项目</label>
                                 <div class="col-md-3">
                                     <select class="form-control select" id="projectSelect" data-style="">
-
+                                        <option value="1" data-rigName="111">Option 1</option>
+                                        <option>Option 2</option>
+                                        <option>Option 3</option>
+                                        <option>Option 4</option>
+                                        <option>Option 5</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
@@ -252,8 +256,6 @@
     var gui = require("nw.gui");
     gui.Window.get().maximize();
     gui.Window.get().show();
-    initDB();
-
 </script>
 
 </body>
