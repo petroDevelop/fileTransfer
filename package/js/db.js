@@ -36,7 +36,7 @@ function initDB(){
             store.createIndex('nameIndex','name',{unique:true});
         }
         if(!db.objectStoreNames.contains('file')){
-            //key,name,path,size,splitStartNum,splitEndNum,status(split,upload,finish),md5,dateCreated,lastUpdated,projectId,projectName,rigName
+            //serverId,key,name,path,size,splitStartNum,splitEndNum,status(split,upload,finish),md5,dateCreated,lastUpdated,projectId,projectName,rigName
             store=db.createObjectStore('file',{autoIncrement: true});
             store.createIndex('nameIndex','name',{unique:false});
         }
@@ -306,38 +306,60 @@ function uploadFiles(data){
     var index=0;
     uploadFile(index,data,finishOneFile);
 }
+/**
+ * 上传文件，先向服务器端申请fileid
+ * @param index
+ * @param data
+ * @param callbackFunc
+ */
 function uploadFile(index,data,callbackFunc){
     var one=data[index];
-    var q = async.queue(function(task, callback) {
-        //console.log('worker is processing task: ', task.name);
-        task.run(callback);
-    }, maxThread);
-    q.saturated = function() {
-        //console.log('all workers to be used');
-    }
-    q.empty = function() {
-        //console.log('no more tasks waiting');
-    }
-    q.drain = function() {
-        //console.log('all tasks have been processed');
-        //@todo 修改 @ finish 文件状态
-        // 清除temp
-        callbackFunc(index,data);
-    }
-    var array=[];
-    //@todo one 读取 block 地址
-    q.push([
+    ////params（name,projectId,path,size,splitStartNum,splitEndNum,md5）
+    var fileParam = {name:one.name,projectId:one.projectId,path:one.path,size:one.realsize,splitStartNum:one.splitStartNum,splitEndNum:one.splitEndNum,md5:one.md5};
+    needle.post(serverUrl+"microseism/addOneFile", fileParam, {}, function(err, resp) {
+        if(!err && resp.statusCode == 200)
         {
-            name:'t3', run: function(cb){
-                //task -- block
-                //needle post
-                //@todo block 状态 //db状态
-
-            }
+            var json = resp.body;
+            if (json == null)return;
+            if(json.result != true)return;
+            one.serverId = json.id;
+            startUploadBlock(index,data,callbackFunc)
         }
-    ], function(err) {
-        //console.log('err: ',err);
+
     });
+}
+function startUploadBlock(index,data,callbackFunc)
+{
+    // var q = async.queue(function(task, callback) {
+    //     //console.log('worker is processing task: ', task.name);
+    //     task.run(callback);
+    // }, maxThread);
+    // q.saturated = function() {
+    //     //console.log('all workers to be used');
+    // }
+    // q.empty = function() {
+    //     //console.log('no more tasks waiting');
+    // }
+    // q.drain = function() {
+    //     //console.log('all tasks have been processed');
+    //     //@todo 修改 @ finish 文件状态
+    //     // 清除temp
+    //     callbackFunc(index,data);
+    // }
+    // var array=[];
+    // //@todo one 读取 block 地址
+    // q.push([
+    //     {
+    //         name:'t3', run: function(cb){
+    //             //task -- block
+    //             //needle post
+    //             //@todo block 状态 //db状态
+    //
+    //         }
+    //     }
+    // ], function(err) {
+    //     //console.log('err: ',err);
+    // });
 }
 function finishOneFile(index,data){
     index++;
