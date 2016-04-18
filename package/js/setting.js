@@ -78,13 +78,41 @@ $(function() {
             }
         }
     });
+    var dt=$("#fileHistoryTable").DataTable( {
+        columns: [
+            {data:'key', title:'ID',orderable: false,searchable:false},
+            { data: 'name',title:'文件名称',orderable: false,searchable:false },
+            { data: 'size',title:'文件大小',orderable: false,searchable:false },
+            { data: 'projectName',title:'隶属项目',orderable: false,searchable:false },
+            { data: 'path',title:'路径',orderable: false,searchable:false },
+            { data: 'status',title:'状态',orderable: false,searchable:false }
+
+        ],
+        searching: true,
+        paging: true,
+        ordering: true,
+        order:[0,'asc'],
+        oLanguage : {
+            sLengthMenu: "每页显示 _MENU_ 条记录",
+            sZeroRecords: "抱歉， 没有找到",
+            sInfo: "从 _START_ 到 _END_ /共 _TOTAL_ 条数据",
+            sInfoEmpty: "没有数据",
+            sInfoFiltered: "(从 _MAX_ 条数据中检索)",
+            sZeroRecords: "没有检索到数据",
+            sSearch: "名称:",
+            oPaginate: {
+                sFirst: "首页",
+                sPrevious: "上一页",
+                sNext: "下一页",
+                sLast: "末页"
+            }
+        }
+    });
     $('#fileTable tbody').on('click','tr td a.deleteControl',function (){
         var tr = $(this).closest('tr');
         dropOneFile($(this).attr('data-key'));
         dt.row(tr).remove().draw();
     } );
-
-    
     getUserInfo();
 });
 

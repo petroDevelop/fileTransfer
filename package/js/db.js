@@ -4,6 +4,7 @@
 var serverUrl="http://localhost:8080/fileReceiver/";
 var userKey="";
 var userId="0";
+var username="";
 var maxFileSize=1;
 var maxThread=5;
 var tempWorkDir="";
@@ -30,7 +31,7 @@ function initDB(){
     request.onupgradeneeded=function(event){
         db=event.target.result;
         if(!db.objectStoreNames.contains('user')){
-            //key,name,username,initTime，maxFileSize（M）,maxThread,serverUrl，tempWorkDir
+            //key,name（登录名）,username(真实姓名),initTime，maxFileSize（M）,maxThread,serverUrl，tempWorkDir
             store=db.createObjectStore('user',{keyPath:"id"});
             store.createIndex('nameIndex','name',{unique:true});
         }
@@ -78,7 +79,11 @@ function handleUserData(table,data){
     if(data.length>0){
         userId=data[0].id;
         userKey=data[0].key;
+        username=data[0].username;
         serverUrl=data[0].serverUrl;
+        maxFileSize=data[0].maxFileSize;
+        maxThread=data[0].maxThread;
+        tempWorkDir=data[0].tempWorkDir+"/";
         if(userId!=="0"){
             window.location.href="index.html";
         }
@@ -140,10 +145,16 @@ function getUserInfo(){
             }else{
                 userId=data[0].id;
                 userKey=data[0].key;
+                username=data[0].username;
                 serverUrl=data[0].serverUrl;
                 maxFileSize=data[0].maxFileSize;
                 maxThread=data[0].maxThread;
                 tempWorkDir=data[0].tempWorkDir+"/";
+                $('#usernameDiv').val(username);
+                $('#serverUrl').val(serverUrl);
+                $('#maxFileSize').val(maxFileSize);
+                $('#maxThread').val(maxThread);
+                $('#tempWorkDir').val(tempWorkDir);
                 needle.post(serverUrl+"microseism/catchProjects", 'id='+userId, {}, function(err, resp) {
                     var json=resp.body;
                     if(json == null)return;
@@ -362,4 +373,8 @@ function splitFile(data,callbackFunc){
             //@todo 切分 存入block //上传
             callbackFunc();
         });
+}
+
+function saveConfig(){
+    //@todo
 }
