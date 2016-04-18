@@ -40,6 +40,17 @@
     <script type="text/javascript" src="js/setting.js"></script>
     <link rel="stylesheet" href="js/toolbar/style.css">
     <script type="text/javascript" src="js/toolbar/titlebar.js"></script>
+
+    <style>
+        body,html
+        {
+            margin: 0px;
+            padding: 0px;
+        }
+        .input-group .form-control {
+            z-index: auto;
+        }
+    </style>
 </head>
 <body>
 
@@ -148,7 +159,7 @@
                     <div class="row">
                         <div class="col-sm-12" style="padding: 50px">
                             <div class="footerbar animated" data-animation="fadeIn" data-animation-delay="500">
-                                <table id="fileTable" class="table datatable">
+                                <table id="fileTable" class="table datatable table-hover">
                                 </table>
                             </div>
                         </div>
@@ -174,7 +185,7 @@
                     <!-- section text -->
                     <div class="row">
                         <div class="col-sm-12 about-text animated"  style="padding: 50px" data-animation="fadeIn" data-animation-delay="700">
-                            <table id="fileHistoryTable" class="table datatable">
+                            <table id="fileHistoryTable" class="table datatable table-hover">
                             </table>
                         </div>
 

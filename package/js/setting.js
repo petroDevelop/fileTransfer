@@ -50,9 +50,9 @@ $(function() {
             } },
             { title:'操作',orderable: false, render: function ( data, type, rowData, meta ) {
                 //var option = '<a ><span class="fa fa-eye" style="cursor: pointer;color:green;" title="编辑"></span></a>';
-                var option  =  '<a class="deleteControl" data-key="'+rowData.key+'"><span class="fa fa-times" style="cursor: pointer;color:red;" title="删除"></span></a>'
+                var option  =  '<a class="deleteControl" data-key="'+rowData.key+'"><span class="fa fa-times" style="cursor: pointer;color:red;" title="删除"></span></a>';
                 if(rowData.status){
-                    option  =  '';
+                    option  =  '<a class="detailControl" data-key="'+rowData.key+'" ><span class="fa fa-eye" style="cursor: pointer;color:green;" title="编辑"></span></a>';
                 }
                 return option;
             } }
@@ -78,15 +78,27 @@ $(function() {
             }
         }
     });
-    var dt=$("#fileHistoryTable").DataTable( {
+
+    $('#fileTable tbody').on('click','tr td a.deleteControl',function (){
+        var tr = $(this).closest('tr');
+        dt.row(tr).remove().draw();
+        dropOneFile($(this).attr('data-key'));
+    } );
+    $('#fileTable tbody').on('click','tr td a.detailControl',function (){
+        showOneFile($(this).attr('data-key'));
+    } );
+    var dht=$("#fileHistoryTable").DataTable( {
         columns: [
             {data:'key', title:'ID',orderable: false,searchable:false},
             { data: 'name',title:'文件名称',orderable: false,searchable:false },
             { data: 'size',title:'文件大小',orderable: false,searchable:false },
             { data: 'projectName',title:'隶属项目',orderable: false,searchable:false },
             { data: 'path',title:'路径',orderable: false,searchable:false },
-            { data: 'status',title:'状态',orderable: false,searchable:false }
-
+            { data: 'status',title:'状态',orderable: false,searchable:false },
+            { title:'操作',orderable: false, render: function ( data, type, rowData, meta ) {
+                var option  =  '<a class="detailControl" data-key="'+rowData.key+'" ><span class="fa fa-eye" style="cursor: pointer;color:green;" title="编辑"></span></a>'
+                return option;
+            } }
         ],
         searching: true,
         paging: true,
@@ -108,10 +120,8 @@ $(function() {
             }
         }
     });
-    $('#fileTable tbody').on('click','tr td a.deleteControl',function (){
-        var tr = $(this).closest('tr');
-        dropOneFile($(this).attr('data-key'));
-        dt.row(tr).remove().draw();
+    $('#fileHistoryTable tbody').on('click','tr td a.detailControl',function (){
+        showOneFile($(this).attr('data-key'));
     } );
     getUserInfo();
 });
