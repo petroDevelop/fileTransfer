@@ -403,6 +403,22 @@ function splitFile(data,callbackFunc){
             if(len<1024*1024*maxFileSize){
 
             }else{
+                //存入block
+                //params key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
+                var blockData={
+                    "name":data.name+"."+fileSplitIndex,
+                    "splitNum":fileSplitIndex,
+                    "fileKey":data.key,
+                    "path": tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,
+                    "size": len,
+                    "status": 'split',
+                    "dateCreated": new Date(),
+                    "lastUpdated": new Date()
+                }
+                addBlockData(blockData,function(data,key){
+                    data.key=key;
+                });
+
                 len=0;
                 fileSplitIndex++;
             }
@@ -410,20 +426,6 @@ function splitFile(data,callbackFunc){
                 fs.mkdirSync(tempWorkDir+"fileFolder/");
             }
             fs.appendFileSync(tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,chunk);
-            //params key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
-            var blockData={
-                "name":data.name+"."+fileSplitIndex,
-                "splitNum":fileSplitIndex,
-                "fileKey":data.key,
-                "path": tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,
-                "size": chunk.length,
-                "status": 'split',
-                "dateCreated": new Date(),
-                "lastUpdated": new Date()
-            }
-            addBlockData(blockData,function(data,key){
-                data.key=key;
-            });
         })
         .on("end", function () {
             //
@@ -431,7 +433,20 @@ function splitFile(data,callbackFunc){
             data.splitEndNum=fileSplitIndex;
             //@todo file db 同步
             //@todo 切分 存入block //上传
-
+            //params key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
+            // var blockData={
+            //     "name":data.name+"."+fileSplitIndex,
+            //     "splitNum":fileSplitIndex,
+            //     "fileKey":data.key,
+            //     "path": tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,
+            //     "size": chunk.length,
+            //     "status": 'split',
+            //     "dateCreated": new Date(),
+            //     "lastUpdated": new Date()
+            // }
+            // addBlockData(blockData,function(data,key){
+            //     data.key=key;
+            // });
             callbackFunc();
         });
 }
