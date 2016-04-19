@@ -330,10 +330,14 @@ function uploadFile(index,data,callbackFunc){
 }
 function startUploadBlock(index,data,callbackFunc)
 {
-    // var q = async.queue(function(task, callback) {
-    //     //console.log('worker is processing task: ', task.name);
-    //     task.run(callback);
-    // }, maxThread);
+    var one=data[index];
+    /**
+     * 定义一个queue，设worker数量
+     */
+    var q = async.queue(function(task, callback) {
+        //console.log('worker is processing task: ', task.name);
+        task.run(callback);
+    }, maxThread);
     // q.saturated = function() {
     //     //console.log('all workers to be used');
     // }
@@ -347,19 +351,39 @@ function startUploadBlock(index,data,callbackFunc)
     //     callbackFunc(index,data);
     // }
     // var array=[];
-    // //@todo one 读取 block 地址
-    // q.push([
-    //     {
-    //         name:'t3', run: function(cb){
-    //             //task -- block
-    //             //needle post
-    //             //@todo block 状态 //db状态
-    //
-    //         }
-    //     }
-    // ], function(err) {
-    //     //console.log('err: ',err);
-    // });
+    //@todo one 读取 block 地址
+    var uploaderror = function(err){
+        console.log('error:',err);
+    }
+    for (var i = one.splitStartNum;i<=one.splitEndNum;i++)
+    {
+        q.push(
+            {
+                name:one.name+'.'+i, run: function(cb){
+
+                //task -- block
+                //needle post
+                //@todo block 状态 //db状态
+                //params（name,fileId,splitNum,path,size,splitStartNum,splitEndNum,md5，uploadFile（二进制文件））
+                // var fileParam = {name:one.name,fileId:one.serverId,path:one.path,size:one.realsize,splitStartNum:one.splitStartNum,splitEndNum:one.splitEndNum,md5:one.md5};
+                // needle.post(serverUrl+"microseism/uploadOneBlock", fileParam, {}, function(err, resp) {
+                //     if(!err && resp.statusCode == 200)
+                //     {
+                //         var json = resp.body;
+                //         if (json == null)return;
+                //         if(json.result != true)return;
+                //         one.serverId = json.id;
+                //         startUploadBlock(index,data,callbackFunc)
+                //     }
+                //
+                // });
+            }
+            }
+        , function(err) {
+            //console.log('err: ',err);
+        });
+    }
+
 }
 function finishOneFile(index,data){
     index++;
@@ -386,6 +410,20 @@ function splitFile(data,callbackFunc){
                 fs.mkdirSync(tempWorkDir+"fileFolder/");
             }
             fs.appendFileSync(tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,chunk);
+            //params key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
+            var blockData={
+                "name":data.name+"."+fileSplitIndex,
+                "splitNum":fileSplitIndex,
+                "fileKey":data.key,
+                "path": tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,
+                "size": chunk.length,
+                "status": 'split',
+                "dateCreated": new Date(),
+                "lastUpdated": new Date()
+            }
+            addBlockData(blockData,function(data,key){
+                data.key=key;
+            });
         })
         .on("end", function () {
             //
@@ -393,8 +431,44 @@ function splitFile(data,callbackFunc){
             data.splitEndNum=fileSplitIndex;
             //@todo file db 同步
             //@todo 切分 存入block //上传
+
             callbackFunc();
         });
+}
+
+function addBlockData(data,callback){
+    var transaction=db.transaction('block','readwrite');
+    var store=transaction.objectStore('block');
+    var objectStoreRequest = store.add(data);
+    objectStoreRequest.onsuccess = function(e1) {
+        var key=e1.target.result;
+        callback(data,key);
+    }
+    /*
+     var dbName="fileTransfer";
+     var dbVersion = 1;
+     //var db;
+     var store;
+     var request = window.indexedDB.open(dbName, dbVersion);
+     request.onsuccess = function (event) {
+     db = request.result;
+     var transaction=db.transaction('file','readwrite');
+     var store=transaction.objectStore('file');
+     var objectStoreRequest = store.add(data);
+     objectStoreRequest.onsuccess = function(e1) {
+     var key=e1.target.result;
+     callback(data,key);
+     //return fileId; //id
+     }
+     };
+     request.onerror=function(event){
+     console.log("Error creating/accessing IndexedDB database");
+     };
+     request.onupgradeneeded=function(event){
+     console.log('DB version changed to '+dbVersion);
+     };
+     */
+
 }
 
 function saveConfig(){
