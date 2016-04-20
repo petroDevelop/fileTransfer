@@ -75,6 +75,28 @@ function getAll(table,callbackFunc){
         }
     }
 }
+function queryTable(table,indexName,range,callbackFunc)
+{
+    var transaction = db.transaction(table);
+    // 通过IDBTransaction得到IDBObjectStore
+    var objectStore = transaction.objectStore(table);
+    // 打开游标，遍历table中所有数据
+    var index = objectStore.index(indexName);
+    var data = []
+    index.openCursor(range).onsuccess = function(event) {
+        var cursor = event.target.result;
+        if (cursor) {
+            var key = cursor.key;
+            var rowData = cursor.value;
+            rowData.key = key;
+            //var jsonStr = JSON.stringify(cursor.value);
+            cursor.continue();
+            data.push(rowData);
+        } else {
+            callbackFunc(table, data);
+        }
+    }
+}
 function handleUserData(table,data){
     if(data.length>0){
         userId=data[0].id;
@@ -352,37 +374,40 @@ function startUploadBlock(index,data,callbackFunc)
     // }
     // var array=[];
     //@todo one 读取 block 地址
-    var uploaderror = function(err){
-        console.log('error:',err);
-    }
-    for (var i = one.splitStartNum;i<=one.splitEndNum;i++)
-    {
-        q.push(
-            {
-                name:one.name+'.'+i, run: function(cb){
+    var blocks = queryTable("block","nameIndex",
+        IDBKeyRange.bound(one.name+"." + one.splitStartNum,one.name+"." + one.splitEndNum,false, true),
+        function(table,data){
 
-                //task -- block
-                //needle post
-                //@todo block 状态 //db状态
-                //params（name,fileId,splitNum,path,size,splitStartNum,splitEndNum,md5，uploadFile（二进制文件））
-                // var fileParam = {name:one.name,fileId:one.serverId,path:one.path,size:one.realsize,splitStartNum:one.splitStartNum,splitEndNum:one.splitEndNum,md5:one.md5};
-                // needle.post(serverUrl+"microseism/uploadOneBlock", fileParam, {}, function(err, resp) {
-                //     if(!err && resp.statusCode == 200)
-                //     {
-                //         var json = resp.body;
-                //         if (json == null)return;
-                //         if(json.result != true)return;
-                //         one.serverId = json.id;
-                //         startUploadBlock(index,data,callbackFunc)
-                //     }
-                //
-                // });
-            }
-            }
-        , function(err) {
-            //console.log('err: ',err);
         });
-    }
+
+    // for (var i = one.splitStartNum;i<=one.splitEndNum;i++)
+    // {
+    //     q.push(
+    //         {
+    //             name:one.name+'.'+i, run: function(cb){
+    //
+    //             //task -- block
+    //             //needle post
+    //             //@todo block 状态 //db状态
+    //             //params（name,fileId,splitNum,path,size,splitStartNum,splitEndNum,md5，uploadFile（二进制文件））
+    //             // var fileParam = {name:one.name,fileId:one.serverId,path:one.path,size:one.realsize,splitStartNum:one.splitStartNum,splitEndNum:one.splitEndNum,md5:one.md5};
+    //             // needle.post(serverUrl+"microseism/uploadOneBlock", fileParam, {}, function(err, resp) {
+    //             //     if(!err && resp.statusCode == 200)
+    //             //     {
+    //             //         var json = resp.body;
+    //             //         if (json == null)return;
+    //             //         if(json.result != true)return;
+    //             //         one.serverId = json.id;
+    //             //         startUploadBlock(index,data,callbackFunc)
+    //             //     }
+    //             //
+    //             // });
+    //         }
+    //         }
+    //     , function(err) {
+    //         //console.log('err: ',err);
+    //     });
+    // }
 
 }
 function finishOneFile(index,data){
@@ -428,10 +453,26 @@ function splitFile(data,callbackFunc){
             fs.appendFileSync(tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,chunk);
         })
         .on("end", function () {
-            //
+
             data.splitStartNum=0;
             data.splitEndNum=fileSplitIndex;
+            //保存最后一个block
+            var blockData={
+                "name":data.name+"."+fileSplitIndex,
+                "splitNum":fileSplitIndex,
+                "fileKey":data.key,
+                "path": tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,
+                "size": len,
+                "status": 'split',
+                "dateCreated": new Date(),
+                "lastUpdated": new Date()
+            }
+            addBlockData(blockData,function(data,key){
+                data.key=key;
+            });
+
             //@todo file db 同步
+            data.status = "upload"
             //@todo 切分 存入block //上传
             //params key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
             // var blockData={
@@ -459,31 +500,6 @@ function addBlockData(data,callback){
         var key=e1.target.result;
         callback(data,key);
     }
-    /*
-     var dbName="fileTransfer";
-     var dbVersion = 1;
-     //var db;
-     var store;
-     var request = window.indexedDB.open(dbName, dbVersion);
-     request.onsuccess = function (event) {
-     db = request.result;
-     var transaction=db.transaction('file','readwrite');
-     var store=transaction.objectStore('file');
-     var objectStoreRequest = store.add(data);
-     objectStoreRequest.onsuccess = function(e1) {
-     var key=e1.target.result;
-     callback(data,key);
-     //return fileId; //id
-     }
-     };
-     request.onerror=function(event){
-     console.log("Error creating/accessing IndexedDB database");
-     };
-     request.onupgradeneeded=function(event){
-     console.log('DB version changed to '+dbVersion);
-     };
-     */
-
 }
 
 function saveConfig(){
