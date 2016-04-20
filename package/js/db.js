@@ -318,6 +318,15 @@ function beginTransFer(){
     data.each(function (d) {
         $('#fileTable').DataTable().row.add(d).draw();
     } );
+    data.each(function (d) {
+        //alert(d.key);
+        for(var i=0;i<10;i++){
+            //setTimeout(function(){
+                $('#progressBar'+ d.key).attr('aria-valuenow', i*10);
+                $('#progressBar'+ d.key).css('width', i*10 + '%');
+            //}, i*100);
+        }
+    } );
 
 }
 function uploadFiles(data){
