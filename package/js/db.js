@@ -287,7 +287,19 @@ function dropOneFile(key){
         console.log("dropOneFile sucess="+key);
     }
 }
-
+var deleteFolderRecursive = function(path) {
+    if( fs.existsSync(path) ) {
+        fs.readdirSync(path).forEach(function(file,index){
+            var curPath = path + "/" + file;
+            if(fs.lstatSync(curPath).isDirectory()) { // recurse
+                deleteFolderRecursive(curPath);
+            } else { // delete file
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+};
 function beginTransFer(){
     //table内的文件
         //切分 存入block
@@ -424,6 +436,10 @@ function finishOneFile(index,data){
 function splitFile(data,callbackFunc){
     var len = 0;
     var fileSplitIndex=0;
+    if(fs.existsSync(tempWorkDir+"fileFolder/"+data.name+"/")){
+        deleteFolderRecursive(tempWorkDir+"fileFolder/"+data.name+"/");
+    }
+    fs.mkdirSync(tempWorkDir+"fileFolder/"+data.name+"/");
     fs.createReadStream(data.path)
         .on('data',function(chunk){
             len+=chunk.length;
@@ -436,7 +452,7 @@ function splitFile(data,callbackFunc){
                     "name":data.name+"."+fileSplitIndex,
                     "splitNum":fileSplitIndex,
                     "fileKey":data.key,
-                    "path": tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,
+                    "path": tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex,
                     "size": len,
                     "status": 'split',
                     "dateCreated": new Date(),
@@ -449,10 +465,7 @@ function splitFile(data,callbackFunc){
                 len=0;
                 fileSplitIndex++;
             }
-            if(!fs.existsSync(tempWorkDir+"fileFolder/")){
-                fs.mkdirSync(tempWorkDir+"fileFolder/");
-            }
-            fs.appendFileSync(tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,chunk);
+            fs.appendFileSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex,chunk);
         })
         .on("end", function () {
             //
@@ -460,20 +473,6 @@ function splitFile(data,callbackFunc){
             data.splitEndNum=fileSplitIndex;
             //@todo file db 同步
             //@todo 切分 存入block //上传
-            //params key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
-            // var blockData={
-            //     "name":data.name+"."+fileSplitIndex,
-            //     "splitNum":fileSplitIndex,
-            //     "fileKey":data.key,
-            //     "path": tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,
-            //     "size": chunk.length,
-            //     "status": 'split',
-            //     "dateCreated": new Date(),
-            //     "lastUpdated": new Date()
-            // }
-            // addBlockData(blockData,function(data,key){
-            //     data.key=key;
-            // });
             callbackFunc();
         });
 }
