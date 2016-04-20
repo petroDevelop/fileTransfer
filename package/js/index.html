@@ -63,7 +63,7 @@ span.seatCharts-legendDescription {margin-left: 5px;line-height: 30px;}
 <script type="text/javascript" src="http://libs.useso.com/js/jquery/1.7.2/jquery.min.js"></script>
 <script type="text/javascript" src="jquery.seat-charts.min.js"></script>
 <script type="text/javascript">
-var price = 80; //票价
+
 $(document).ready(function() {
 	
 	var sc = $('#seat-map').seatCharts({
@@ -96,7 +96,7 @@ $(document).ready(function() {
 				//alert(this.settings.label);
 				//alert(this.settings.row);
 				//alert(this.settings.column);
-				sc.get(['1_4', '1_5','1_6']).status('unavailable');
+				//sc.get(['1_4', '1_5','1_6']).status('unavailable');
 				return 'selected';
 			} else if (this.status() == 'selected') { //已选中
 					return 'available';

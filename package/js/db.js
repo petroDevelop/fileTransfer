@@ -120,6 +120,22 @@ function handleUserData(table,data){
         db.transaction(table,'readwrite').objectStore(table).put(newData);
     }
 }
+function handleFileData(table,data){
+    var fileNum=0;
+    if(data.length>0){
+        for(var i=0;i<data.length;i++){
+            if(data[i].status==="finish"){
+                $('#fileHistoryTable').DataTable().row.add(data[i]).draw();
+            }else{
+                fileNum++;
+                $('#fileTable').DataTable().row.add(data[i]).draw();
+            }
+        }
+    }
+    if(fileNum>0){
+        $('#useLink').click();
+    }
+}
 function updateDbServerUrl(table,key){
     var transaction=db.transaction(table,'readwrite');
     var store=transaction.objectStore(table);
@@ -200,6 +216,7 @@ function getUserInfo(){
                         });
                     }
                 });
+                getAll("file",handleFileData);
             }
         }
     };
@@ -292,7 +309,19 @@ function dropOneFile(key){
         console.log("dropOneFile sucess="+key);
     }
 }
-
+var deleteFolderRecursive = function(path) {
+    if( fs.existsSync(path) ) {
+        fs.readdirSync(path).forEach(function(file,index){
+            var curPath = path + "/" + file;
+            if(fs.lstatSync(curPath).isDirectory()) { // recurse
+                deleteFolderRecursive(curPath);
+            } else { // delete file
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+};
 function beginTransFer(){
     //table内的文件
         //切分 存入block
@@ -317,10 +346,20 @@ function beginTransFer(){
     } );
     data.each( function (d) {
         d.status="split";
+        //@todo 更新数据库
     } );
     table.clear().draw();
     data.each(function (d) {
         $('#fileTable').DataTable().row.add(d).draw();
+    } );
+    data.each(function (d) {
+        //alert(d.key);
+        for(var i=0;i<10;i++){
+            //setTimeout(function(){
+                $('#progressBar'+ d.key).attr('aria-valuenow', i*10);
+                $('#progressBar'+ d.key).css('width', i*10 + '%');
+            //}, i*100);
+        }
     } );
 
 }
@@ -422,6 +461,10 @@ function finishOneFile(index,data){
 function splitFile(data,callbackFunc){
     var len = 0;
     var fileSplitIndex=0;
+    if(fs.existsSync(tempWorkDir+"fileFolder/"+data.name+"/")){
+        deleteFolderRecursive(tempWorkDir+"fileFolder/"+data.name+"/");
+    }
+    fs.mkdirSync(tempWorkDir+"fileFolder/"+data.name+"/");
     fs.createReadStream(data.path)
         .on('data',function(chunk){
             len+=chunk.length;
@@ -434,7 +477,7 @@ function splitFile(data,callbackFunc){
                     "name":data.name+"."+fileSplitIndex,
                     "splitNum":fileSplitIndex,
                     "fileKey":data.key,
-                    "path": tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,
+                    "path": tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex,
                     "size": len,
                     "status": 'split',
                     "dateCreated": new Date(),
@@ -447,10 +490,7 @@ function splitFile(data,callbackFunc){
                 len=0;
                 fileSplitIndex++;
             }
-            if(!fs.existsSync(tempWorkDir+"fileFolder/")){
-                fs.mkdirSync(tempWorkDir+"fileFolder/");
-            }
-            fs.appendFileSync(tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,chunk);
+            fs.appendFileSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex,chunk);
         })
         .on("end", function () {
 
@@ -474,20 +514,6 @@ function splitFile(data,callbackFunc){
             //@todo file db 同步
             data.status = "upload"
             //@todo 切分 存入block //上传
-            //params key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
-            // var blockData={
-            //     "name":data.name+"."+fileSplitIndex,
-            //     "splitNum":fileSplitIndex,
-            //     "fileKey":data.key,
-            //     "path": tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,
-            //     "size": chunk.length,
-            //     "status": 'split',
-            //     "dateCreated": new Date(),
-            //     "lastUpdated": new Date()
-            // }
-            // addBlockData(blockData,function(data,key){
-            //     data.key=key;
-            // });
             callbackFunc();
         });
 }
@@ -503,5 +529,74 @@ function addBlockData(data,callback){
 }
 
 function saveConfig(){
+
+    if(window.confirm("请确认保存?")){
+        username=$('#usernameDiv').val();
+        serverUrl=$('#serverUrl').val();
+        maxFileSize=$('#maxFileSize').val();
+        maxThread=$('#maxThread').val();
+        tempWorkDir=$('#tempWorkDir').val();
+        var transaction=db.transaction("user",'readwrite');
+        var store=transaction.objectStore("user");
+        var request=store.get(userKey);
+        request.onsuccess=function(e){
+            var data=e.target.result;
+            data.username=username;
+            data.serverUrl=serverUrl;
+            data.maxFileSize=maxFileSize;
+            data.maxThread=maxThread;
+            data.tempWorkDir=tempWorkDir;
+            store.put(data);
+            alert("配置保存成功!");
+        };
+    }
+
+
+}
+function showOneFile(dataKey){
     //@todo
+    var sc = $('#seat-map').seatCharts({
+        map: [  //座位图
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa'
+        ],
+        naming : {
+            top : false,
+            getLabel : function (character, row, column) {
+                return column+(row-1)*10;
+            }
+        },
+        legend : { //定义图例
+            node : $('#legend'),
+            items : [
+                [ 'a', 'available',   '未上传' ],
+                [ 'a', 'unavailable', '已上传']
+            ]
+        },
+        click: function () { //点击事件
+            if (this.status() == 'available') { //可选座
+                //alert(this.settings.label);
+                //alert(this.settings.row);
+                //alert(this.settings.column);
+                //sc.get(['1_4', '1_5','1_6']).status('unavailable');
+                return 'selected';
+            } else if (this.status() == 'selected') { //已选中
+                return 'available';
+            } else if (this.status() == 'unavailable') { //已售出
+                return 'unavailable';
+            } else {
+                return this.style();
+            }
+        }
+    });
+    //已售出的座位
+    sc.get(['1_1', '1_2','1_3']).status('unavailable');
+    $('#modalShowblock').modal('show');
 }
