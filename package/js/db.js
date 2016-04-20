@@ -98,6 +98,22 @@ function handleUserData(table,data){
         db.transaction(table,'readwrite').objectStore(table).put(newData);
     }
 }
+function handleFileData(table,data){
+    var fileNum=0;
+    if(data.length>0){
+        for(var i=0;i<data.length;i++){
+            if(data[i].status==="finish"){
+                $('#fileHistoryTable').DataTable().row.add(data[i]).draw();
+            }else{
+                fileNum++;
+                $('#fileTable').DataTable().row.add(data[i]).draw();
+            }
+        }
+    }
+    if(fileNum>0){
+        $('#useLink').click();
+    }
+}
 function updateDbServerUrl(table,key){
     var transaction=db.transaction(table,'readwrite');
     var store=transaction.objectStore(table);
@@ -178,6 +194,7 @@ function getUserInfo(){
                         });
                     }
                 });
+                getAll("file",handleFileData);
             }
         }
     };
@@ -295,6 +312,7 @@ function beginTransFer(){
     } );
     data.each( function (d) {
         d.status="split";
+        //@todo 更新数据库
     } );
     table.clear().draw();
     data.each(function (d) {
@@ -376,5 +394,30 @@ function splitFile(data,callbackFunc){
 }
 
 function saveConfig(){
+
+    if(window.confirm("请确认保存?")){
+        username=$('#usernameDiv').val();
+        serverUrl=$('#serverUrl').val();
+        maxFileSize=$('#maxFileSize').val();
+        maxThread=$('#maxThread').val();
+        tempWorkDir=$('#tempWorkDir').val();
+        var transaction=db.transaction("user",'readwrite');
+        var store=transaction.objectStore("user");
+        var request=store.get(userKey);
+        request.onsuccess=function(e){
+            var data=e.target.result;
+            data.username=username;
+            data.serverUrl=serverUrl;
+            data.maxFileSize=maxFileSize;
+            data.maxThread=maxThread;
+            data.tempWorkDir=tempWorkDir;
+            store.put(data);
+            alert("配置保存成功!");
+        };
+    }
+
+
+}
+function showOneFile(dataKey){
     //@todo
 }
