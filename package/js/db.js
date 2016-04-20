@@ -540,4 +540,48 @@ function saveConfig(){
 }
 function showOneFile(dataKey){
     //@todo
+    var sc = $('#seat-map').seatCharts({
+        map: [  //座位图
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa'
+        ],
+        naming : {
+            top : false,
+            getLabel : function (character, row, column) {
+                return column+(row-1)*10;
+            }
+        },
+        legend : { //定义图例
+            node : $('#legend'),
+            items : [
+                [ 'a', 'available',   '未上传' ],
+                [ 'a', 'unavailable', '已上传']
+            ]
+        },
+        click: function () { //点击事件
+            if (this.status() == 'available') { //可选座
+                //alert(this.settings.label);
+                //alert(this.settings.row);
+                //alert(this.settings.column);
+                //sc.get(['1_4', '1_5','1_6']).status('unavailable');
+                return 'selected';
+            } else if (this.status() == 'selected') { //已选中
+                return 'available';
+            } else if (this.status() == 'unavailable') { //已售出
+                return 'unavailable';
+            } else {
+                return this.style();
+            }
+        }
+    });
+    //已售出的座位
+    sc.get(['1_1', '1_2','1_3']).status('unavailable');
+    $('#modalShowblock').modal('show');
 }
