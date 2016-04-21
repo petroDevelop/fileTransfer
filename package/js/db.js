@@ -77,8 +77,9 @@ function getAll(table,callbackFunc){
 }
 function loginSuccess(){
      var win=gui.Window.get();
-     win.setMinimumSize(1000, 750);
-     win.setMaximumSize(1920, 1024);
+     win.setMinimumSize(900, 750);
+     win.setMaximumSize(1200, 800);
+     win.setPosition('center');
      window.location.href="index.html";
 }
 function queryTable(table,indexName,range,callbackFunc)

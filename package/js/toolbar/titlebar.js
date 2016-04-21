@@ -16,7 +16,7 @@ function createImage(image_id, image_url) {
 }
 
 function createButton(button_id, button_name, normal_image_url,
-                       hover_image_url, click_func) {
+                      hover_image_url, click_func) {
   var button = document.createElement("div");
   button.setAttribute("class", button_name);
   var button_img = createImage(button_id, normal_image_url);
@@ -33,7 +33,7 @@ function createButton(button_id, button_name, normal_image_url,
 
 function focusTitlebars(focus) {
   var bg_color = focus ? "#3a3d3d" : "#7a7c7c";
-    
+
   var titlebar = document.getElementById("top-titlebar");
   if (titlebar)
     titlebar.style.backgroundColor = bg_color;
@@ -64,16 +64,16 @@ function addTitlebar(titlebar_name, titlebar_icon_url, titlebar_text) {
   titlebar.appendChild(title);
 
   var closeButton = createButton(titlebar_name + "-close-button",
-                                 titlebar_name + "-close-button",
-                                 "button_close.png",
-                                 "button_close_hover.png",
-                                 closeWindow);
+      titlebar_name + "-close-button",
+      "button_close.png",
+      "button_close_hover.png",
+      closeWindow);
   titlebar.appendChild(closeButton);
 
   var divider = document.createElement("div");
   divider.setAttribute("class", titlebar_name + "-divider");
   titlebar.appendChild(divider);
-  
+
   document.body.appendChild(titlebar);
 }
 
@@ -119,3 +119,4 @@ function updateContentStyle() {
   contentStyle += "height: " + height + "px; ";
   content.setAttribute("style", contentStyle);
 }
+
