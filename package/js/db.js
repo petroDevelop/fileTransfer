@@ -75,6 +75,12 @@ function getAll(table,callbackFunc){
         }
     }
 }
+function loginSuccess(){
+     var win=gui.Window.get();
+     win.setMinimumSize(1000, 750);
+     win.setMaximumSize(1920, 1024);
+     window.location.href="index.html";
+}
 function queryTable(table,indexName,range,callbackFunc)
 {
     var transaction = db.transaction(table);
@@ -107,7 +113,7 @@ function handleUserData(table,data){
         maxThread=data[0].maxThread;
         tempWorkDir=data[0].tempWorkDir+"/";
         if(userId!=="0"){
-            window.location.href="index.html";
+            loginSuccess();
         }
     }else{
         var newData={
@@ -255,7 +261,7 @@ function login(){
                             tempWorkDir:nw.App.dataPath
                         }
                         insertData("user",newData,function(){
-                            window.location.href="index.html";
+                           loginSuccess();
                         });
                     });
 
@@ -354,10 +360,11 @@ function beginTransFer(){
     } );
     data.each(function (d) {
         //alert(d.key);
-        for(var i=0;i<10;i++){
+        for(var i=1;i<11;i++){
             //setTimeout(function(){
                 $('#progressBar'+ d.key).attr('aria-valuenow', i*10);
                 $('#progressBar'+ d.key).css('width', i*10 + '%');
+                $('#progressBar'+ d.key).html(i*10+"%");
             //}, i*100);
         }
     } );
@@ -526,6 +533,31 @@ function addBlockData(data,callback){
         var key=e1.target.result;
         callback(data,key);
     }
+    /*
+     var dbName="fileTransfer";
+     var dbVersion = 1;
+     //var db;
+     var store;
+     var request = window.indexedDB.open(dbName, dbVersion);
+     request.onsuccess = function (event) {
+     db = request.result;
+     var transaction=db.transaction('file','readwrite');
+     var store=transaction.objectStore('file');
+     var objectStoreRequest = store.add(data);
+     objectStoreRequest.onsuccess = function(e1) {
+     var key=e1.target.result;
+     callback(data,key);
+     //return fileId; //id
+     }
+     };
+     request.onerror=function(event){
+     console.log("Error creating/accessing IndexedDB database");
+     };
+     request.onupgradeneeded=function(event){
+     console.log('DB version changed to '+dbVersion);
+     };
+     */
+
 }
 
 function saveConfig(){

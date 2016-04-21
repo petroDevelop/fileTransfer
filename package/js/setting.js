@@ -47,7 +47,7 @@ $(function() {
             //{ data: 'path',title:'路径',orderable: false,searchable:false },
             { data: 'status',title:'状态',orderable: false,searchable:false },
             { data: 'progress',title:'进度',orderable: false,searchable:false, render: function ( data, type, rowData, meta ) {
-                var str='<div class="progress-bar progress-bar-success progress-bar-striped" id="progressBar'+rowData.key+'" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%;height: 10px;"> </div>';
+                var str='<div class="progress-bar progress-bar-success progress-bar-striped" id="progressBar'+rowData.key+'" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%;height: 16px;"> </div>';
                 return str;
             } },
             { title:'操作',orderable: false, render: function ( data, type, rowData, meta ) {
