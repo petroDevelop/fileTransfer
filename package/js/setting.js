@@ -24,7 +24,7 @@ $(function() {
                 "projectName":projectName,
                 "rigName":rigName,
                 "name": file.name,
-                "size": (file.size/(1024*1024))+"M",
+                "size": (file.size/(1024*1024)).toFixed(3)+"M",
                 "realsize": file.size,
                 "path": file.path,
                 "status": "",
