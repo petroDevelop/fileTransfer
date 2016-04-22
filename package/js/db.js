@@ -104,6 +104,15 @@ function queryTable(table,indexName,range,callbackFunc)
         }
     }
 }
+function dropBlock(key){
+    var transaction=db.transaction('block','readwrite');
+    var store=transaction.objectStore('block');
+    var request =store.delete(parseInt(key));
+    request.onsuccess = function (event) {
+        console.log("dropBlock sucess="+key);
+    }
+}
+
 function handleUserData(table,data){
     if(data.length>0){
         userId=data[0].id;
@@ -403,59 +412,76 @@ function startUploadBlock(index,data,callbackFunc)
     /**
      * 定义一个queue，设worker数量
      */
-    var q = async.queue(function(task, callback) {
-        //console.log('worker is processing task: ', task.name);
-        task.run(callback);
-    }, maxThread);
-    // q.saturated = function() {
-    //     //console.log('all workers to be used');
-    // }
-    // q.empty = function() {
-    //     //console.log('no more tasks waiting');
-    // }
-    // q.drain = function() {
-    //     //console.log('all tasks have been processed');
-    //     //@todo 修改 @ finish 文件状态
-    //     // 清除temp
-    //     callbackFunc(index,data);
-    // }
-    // var array=[];
     //@todo one 读取 block 地址
-    var blocks = queryTable("block","nameIndex",
+   queryTable("block","nameIndex",
         IDBKeyRange.bound(one.name+"." + one.splitStartNum,one.name+"." + one.splitEndNum,false, true),
         function(table,data){
+            var q = async.queue(function(task, callback) {
+                //console.log('worker is processing task: ', task.name);
+                task.run(callback);
+            }, maxThread);
+            // q.saturated = function() {
+            //     //console.log('all workers to be used');
+            // }
+            // q.empty = function() {
+            //     //console.log('no more tasks waiting');
+            // }
+            q.drain = function() {
+                //console.log('all tasks have been processed');
+                //@todo 修改 @ finish 文件状态
+                one.status = "finish";
+                $('#fileTable').DataTable().row(data.key).remove().draw();
+                dropOneFile(one.key);
+                queryTable("block","nameIndex",
+                    IDBKeyRange.bound(one.name+"." + one.splitStartNum,one.name+"." + one.splitEndNum,false, true),
+                    function(table,data) {
+                        for (var i = 0;i<data.length;i++)
+                        {
+                            dropBlock(data[i],key);
+                            fs.unlinkSync(data[i].path);
+                        }
+                    });
+                // 清除temp
+                needle.post(serverUrl+"microseism/finishOneFile", "fileId=" + one.serverId, {}, function(err, resp) {
 
+                });
+                callbackFunc(index,data);
+            }
+            var array=[];
+            for (var i = 0;i<=data.length;i++)
+            {
+                var blockInfo = data[i];
+                //key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
+                q.push(
+                    {
+                        name:blockInfo.name, run: function(cb){
+
+                        //task -- block
+                        //needle post
+                        //@todo block 状态 //db状态
+                        //params（name,fileId,splitNum,path,size,splitStartNum,splitEndNum,md5，uploadFile（二进制文件））
+                        var blockdata = fs.readFileSync(blockInfo.path)
+                        var fileParam = {name:blockInfo.name,fileId:one.serverId,path:blockInfo.path,size:blockInfo.size,
+                            splitStartNum:one.splitStartNum,splitEndNum:one.splitEndNum,md5:one.md5,uploadFile:blockdata};
+                        blockInfo.status = "upload";
+                        needle.post(serverUrl+"microseism/uploadOneBlock", fileParam, {}, function(err, resp) {
+                            if(!err && resp.statusCode == 200)
+                            {
+                                var json = resp.body;
+                                if (json == null)return;
+                                if(json.result != true)return;
+                                one.serverId = json.id;
+                                blockInfo.status = "finish";
+                                cb();
+                            }
+                        });
+                    }
+                    }
+                , function(err) {
+                    //console.log('err: ',err);
+                });
+            }
         });
-
-    // for (var i = one.splitStartNum;i<=one.splitEndNum;i++)
-    // {
-    //     q.push(
-    //         {
-    //             name:one.name+'.'+i, run: function(cb){
-    //
-    //             //task -- block
-    //             //needle post
-    //             //@todo block 状态 //db状态
-    //             //params（name,fileId,splitNum,path,size,splitStartNum,splitEndNum,md5，uploadFile（二进制文件））
-    //             // var fileParam = {name:one.name,fileId:one.serverId,path:one.path,size:one.realsize,splitStartNum:one.splitStartNum,splitEndNum:one.splitEndNum,md5:one.md5};
-    //             // needle.post(serverUrl+"microseism/uploadOneBlock", fileParam, {}, function(err, resp) {
-    //             //     if(!err && resp.statusCode == 200)
-    //             //     {
-    //             //         var json = resp.body;
-    //             //         if (json == null)return;
-    //             //         if(json.result != true)return;
-    //             //         one.serverId = json.id;
-    //             //         startUploadBlock(index,data,callbackFunc)
-    //             //     }
-    //             //
-    //             // });
-    //         }
-    //         }
-    //     , function(err) {
-    //         //console.log('err: ',err);
-    //     });
-    // }
-
 }
 function finishOneFile(index,data){
     index++;
