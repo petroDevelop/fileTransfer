@@ -40,10 +40,11 @@ function initDB(){
             store=db.createObjectStore('file',{autoIncrement: true});
             store.createIndex('nameIndex','name',{unique:false});
         }
-        if(!db.objectStoreNames.contains('block')){
+        if(!db.objectStoreNames.contains('block1')){
             //key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
-            store=db.createObjectStore('block',{autoIncrement: true});
+            store=db.createObjectStore('block1',{autoIncrement: true});
             store.createIndex('nameIndex','name',{unique:false});
+            store.createIndex('fileKeyIndex','fileKey',{unique:false});
         }
         console.log('DB version changed to '+dbVersion);
     };
@@ -82,14 +83,14 @@ function loginSuccess(){
      win.setPosition('center');
      window.location.href="index.html";
 }
-function queryTable(table,indexName,range,callbackFunc)
+function queryTable(range,callbackFunc)
 {
-    var transaction = db.transaction(table);
+    var transaction = db.transaction("block1");
     // 通过IDBTransaction得到IDBObjectStore
-    var objectStore = transaction.objectStore(table);
+    var objectStore = transaction.objectStore("block1");
     // 打开游标，遍历table中所有数据
-    var index = objectStore.index(indexName);
-    var data = []
+    var index = objectStore.index("fileKeyIndex");
+    var data = [];
     index.openCursor(range).onsuccess = function(event) {
         var cursor = event.target.result;
         if (cursor) {
@@ -105,8 +106,8 @@ function queryTable(table,indexName,range,callbackFunc)
     }
 }
 function dropBlock(key){
-    var transaction=db.transaction('block','readwrite');
-    var store=transaction.objectStore('block');
+    var transaction=db.transaction('block1','readwrite');
+    var store=transaction.objectStore('block1');
     var request =store.delete(parseInt(key));
     request.onsuccess = function (event) {
         console.log("dropBlock sucess="+key);
@@ -401,21 +402,17 @@ function uploadFile(index,data,callbackFunc){
             if (json == null)return;
             if(json.result != true)return;
             one.serverId = json.id;
+            one.status = "upload";
             startUploadBlock(index,data,callbackFunc)
         }
 
     });
 }
-function startUploadBlock(index,data,callbackFunc)
+function startUploadBlock(order,data,callbackFunc)
 {
-    var one=data[index];
-    /**
-     * 定义一个queue，设worker数量
-     */
-    //@todo one 读取 block 地址
-   queryTable("block","nameIndex",
-        IDBKeyRange.bound(one.name+"." + one.splitStartNum,one.name+"." + one.splitEndNum,false, true),
-        function(table,data){
+    var one=data[order];
+    var tableBlockData = function (table,data){
+        if(data.length>0){
             var q = async.queue(function(task, callback) {
                 //console.log('worker is processing task: ', task.name);
                 task.run(callback);
@@ -430,58 +427,74 @@ function startUploadBlock(index,data,callbackFunc)
                 //console.log('all tasks have been processed');
                 //@todo 修改 @ finish 文件状态
                 one.status = "finish";
-                $('#fileTable').DataTable().row(data.key).remove().draw();
-                dropOneFile(one.key);
-                queryTable("block","nameIndex",
-                    IDBKeyRange.bound(one.name+"." + one.splitStartNum,one.name+"." + one.splitEndNum,false, true),
-                    function(table,data) {
-                        for (var i = 0;i<data.length;i++)
-                        {
-                            dropBlock(data[i],key);
-                            fs.unlinkSync(data[i].path);
-                        }
-                    });
+                // $('#fileTable').DataTable().row(data.key).remove().draw();
+                // dropOneFile(one.key);
+                // queryTable("block","nameIndex",
+                //     IDBKeyRange.bound(one.name+"." + one.splitStartNum,one.name+"." + one.splitEndNum,false, true),
+                //     function(table,data) {
+                //         for (var i = 0;i<data.length;i++)
+                //         {
+                //             dropBlock(data[i],key);
+                //             fs.unlinkSync(data[i].path);
+                //         }
+                //     });
                 // 清除temp
                 needle.post(serverUrl+"microseism/finishOneFile", "fileId=" + one.serverId, {}, function(err, resp) {
-
+                    if(!err && resp.statusCode == 200)
+                    {
+                        alert("传输完成！")
+                    }
                 });
                 callbackFunc(index,data);
             }
             var array=[];
-            for (var i = 0;i<=data.length;i++)
-            {
+            for (var i = 0;i<data.length;i++) {
                 var blockInfo = data[i];
-                //key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
-                q.push(
+                if(blockInfo.fileKey == one.key)
+                {
+                    if (blockInfo.status == "split")
                     {
-                        name:blockInfo.name, run: function(cb){
-
-                        //task -- block
-                        //needle post
-                        //@todo block 状态 //db状态
-                        //params（name,fileId,splitNum,path,size,splitStartNum,splitEndNum,md5，uploadFile（二进制文件））
-                        var blockdata = fs.readFileSync(blockInfo.path)
-                        var fileParam = {name:blockInfo.name,fileId:one.serverId,path:blockInfo.path,size:blockInfo.size,
-                            splitStartNum:one.splitStartNum,splitEndNum:one.splitEndNum,md5:one.md5,uploadFile:blockdata};
-                        blockInfo.status = "upload";
-                        needle.post(serverUrl+"microseism/uploadOneBlock", fileParam, {}, function(err, resp) {
-                            if(!err && resp.statusCode == 200)
+                        //key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
+                        q.push(
                             {
-                                var json = resp.body;
-                                if (json == null)return;
-                                if(json.result != true)return;
-                                one.serverId = json.id;
-                                blockInfo.status = "finish";
-                                cb();
+                                name:blockInfo.name, run: function(cb){
+
+                                //task -- block
+                                //needle post
+                                //@todo block 状态 //db状态
+                                //params（name,fileId,splitNum,path,size,splitStartNum,splitEndNum,md5，uploadFile（二进制文件））
+
+                                var fileParam = {name:blockInfo.name,fileId:one.serverId,path:blockInfo.path,size:blockInfo.size,splitNum:blockInfo.splitNum,
+                                    splitStartNum:one.splitStartNum,splitEndNum:one.splitEndNum,md5:blockInfo.md5,uploadFile:{file:blockInfo.path,content_type:'image/png'}};
+                                blockInfo.status = "upload";
+                                needle.post(serverUrl+"microseism/uploadOneBlock", fileParam, {multipart: true}, function(err, resp) {
+                                    if(!err && resp.statusCode == 200)
+                                    {
+                                        var json = resp.body;
+                                        if (json == null)return;
+                                        if(json.result != true)return;
+                                        blockInfo.status = "finish";
+                                        cb();
+                                    }
+                                });
                             }
-                        });
+                            }
+                            , function(err) {
+                                //console.log('err: ',err);
+                            });
                     }
-                    }
-                , function(err) {
-                    //console.log('err: ',err);
-                });
+                }
+
+
             }
-        });
+        }
+    }
+    getAll("block1",tableBlockData);
+
+    /**
+     * 定义一个queue，设worker数量
+     */
+
 }
 function finishOneFile(index,data){
     index++;
@@ -499,14 +512,17 @@ function splitFile(data,callbackFunc){
         deleteFolderRecursive(tempWorkDir+"fileFolder/"+data.name+"/");
     }
     fs.mkdirSync(tempWorkDir+"fileFolder/"+data.name+"/");
+    var blockDatas = [];
     fs.createReadStream(data.path)
         .on('data',function(chunk){
             len+=chunk.length;
             if(len<1024*1024*maxFileSize){
 
             }else{
-                //存入block
-                //params key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
+                var crypto = require("crypto");
+                var buf=fs.readFileSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex);
+                var str = buf.toString("binary");
+                var md5str = crypto.createHash("md5").update(str).digest("hex");
                 var blockData={
                     "name":data.name+"."+fileSplitIndex,
                     "splitNum":fileSplitIndex,
@@ -515,12 +531,10 @@ function splitFile(data,callbackFunc){
                     "size": len,
                     "status": 'split',
                     "dateCreated": new Date(),
-                    "lastUpdated": new Date()
+                    "lastUpdated": new Date(),
+                    "md5":md5str,
                 }
-                addBlockData(blockData,function(data,key){
-                    data.key=key;
-                });
-
+                blockDatas.push(blockData)
                 len=0;
                 fileSplitIndex++;
             }
@@ -530,31 +544,61 @@ function splitFile(data,callbackFunc){
 
             data.splitStartNum=0;
             data.splitEndNum=fileSplitIndex;
-            //保存最后一个block
+
+            //保存block
+            var crypto = require("crypto");
+            var buf=fs.readFileSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex);
+            var str = buf.toString("binary");
+            var md5str = crypto.createHash("md5").update(str).digest("hex");
             var blockData={
                 "name":data.name+"."+fileSplitIndex,
                 "splitNum":fileSplitIndex,
                 "fileKey":data.key,
-                "path": tempWorkDir+"fileFolder/"+data.name+"."+fileSplitIndex,
+                "path": tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex,
                 "size": len,
                 "status": 'split',
                 "dateCreated": new Date(),
-                "lastUpdated": new Date()
+                "lastUpdated": new Date(),
+                "md5":md5str,
             }
-            addBlockData(blockData,function(data,key){
-                data.key=key;
-            });
+            blockDatas.push(blockData);
+            var transaction=db.transaction('block1','readwrite');
+            var store=transaction.objectStore('block1');
+            var i = 0;
+            putNext();
 
-            //@todo file db 同步
-            data.status = "upload"
-            //@todo 切分 存入block //上传
-            callbackFunc();
+            function putNext() {
+                if (i<blockDatas.length) {
+                    addBlockData(blockDatas[i],function(data,key)
+                    {
+                        data.key = key;
+                        i++;
+                        putNext();
+                    });
+                    // var request =store.add(blockDatas[i]);
+                    // request.onsuccess = function(e1) {
+                    //     var key = e1.target.result;
+                    //     blockDatas[i].key = key;
+                    //     i++;
+                    //     putNext();
+                    // };
+                    // request.onerror = function(e1) {
+                    //   console.log(e1);
+                    // };
+                } else {   // complete
+                    console.log('populate complete');
+                    //@todo file db 同步
+                    data.status = "upload"
+                    //@todo 切分 存入block //上传
+                    callbackFunc();
+                }
+            }
         });
 }
 
 function addBlockData(data,callback){
-    var transaction=db.transaction('block','readwrite');
-    var store=transaction.objectStore('block');
+    var transaction=db.transaction('block1','readwrite');
+    var store=transaction.objectStore('block1');
     var objectStoreRequest = store.add(data);
     objectStoreRequest.onsuccess = function(e1) {
         var key=e1.target.result;
