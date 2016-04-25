@@ -2,6 +2,46 @@
  * Created by Administrator on 2016/4/16.
  */
 $(function() {
+    globalSeat = $('#seat-map').seatCharts({
+        map: [  //座位图
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa',
+            'aaaaaaaaaa'
+        ],
+        naming : {
+            top : false,
+            getLabel : function (character, row, column) {
+                return column+(row-1)*10;
+            }
+        },
+        legend : { //定义图例
+            node : $('#legend'),
+            items : [
+                [ 'a', 'available',   '未上传' ],
+                [ 'a', 'unavailable', '已上传']
+            ]
+        },
+        click: function () { //点击事件
+            if (this.status() == 'available') { //可选座
+                //sc.get(['1_4', '1_5','1_6']).status('unavailable');
+                return 'selected';
+            } else if (this.status() == 'selected') { //已选中
+                return 'available';
+            } else if (this.status() == 'unavailable') { //已售出
+                return 'unavailable';
+            } else {
+                return this.style();
+            }
+        }
+    });
+
     $("#fileSimple").fileinput({
         showRemove:false,
         showPreview:false,
@@ -41,11 +81,15 @@ $(function() {
     var dt=$("#fileTable").DataTable( {
         columns: [
             {data:'key', title:'ID',orderable: false,searchable:false},
-            { data: 'name',title:'文件名称',orderable: false,searchable:false },
+            { data: 'name',title:'文件名称',width:300,orderable: false,searchable:false },
             { data: 'size',title:'文件大小',orderable: false,searchable:false },
             { data: 'projectName',title:'隶属项目',orderable: false,searchable:false },
             //{ data: 'path',title:'路径',orderable: false,searchable:false },
-            { data: 'status',title:'状态',orderable: false,searchable:false },
+            { data: 'status',title:'状态',orderable: false,searchable:false,render: function ( data, type, rowData, meta ) {
+                var option  =  '<span  id="statusSpan'+rowData.key+'">'+data+'</span>'
+                return option;
+            } },
+
             { data: 'progress',title:'进度',orderable: false,searchable:false, render: function ( data, type, rowData, meta ) {
                 var str='<div class="progress-bar progress-bar-success progress-bar-striped" id="progressBar'+rowData.key+'" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%;height: 16px;"> </div>';
                 return str;
@@ -60,7 +104,7 @@ $(function() {
             } }
 
         ],
-        searching: true,
+        searching: false,
         paging: true,
         ordering: true,
         order:[0,'asc'],
@@ -102,7 +146,7 @@ $(function() {
                 return option;
             } }
         ],
-        searching: true,
+        searching: false,
         paging: true,
         ordering: true,
         order:[0,'asc'],

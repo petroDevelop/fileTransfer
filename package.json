@@ -11,7 +11,9 @@
   "dependencies": {
     "async": "^1.5.2",
     "binary-split": "^1.0.2",
+    "crypto": "0.0.3",
     "needle": "^1.0.0",
+    "simplesync": "0.0.4",
     "unzip": "^0.1.11"
   },
   "webkit": {
@@ -26,8 +28,7 @@
     "toolbar": false,
     "position": "center",
     "width": 310,
-    "height":319,
-    "position": "center",
+    "height": 319,
     "min_width": 310,
     "min_height": 319,
     "max_width": 310,

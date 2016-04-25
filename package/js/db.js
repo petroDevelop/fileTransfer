@@ -9,10 +9,21 @@ var maxFileSize=1;
 var maxThread=5;
 var tempWorkDir="";
 var db;
+//文件名对应的block数目
+var filesBlockNum={};
+var filesServerId={};
+//文件名对应的未完成block数目
+var filesRemain={};
+//全部文件块任务
+var allblocks=[];
+
+var globalSeat;
+var globalShowFileKey;
 
 var fs = require('fs');
 var needle = require('needle');
-var async = require('async');
+
+
 function initDB(){
     var dbName="fileTransfer";
     var dbVersion = 1;
@@ -40,9 +51,9 @@ function initDB(){
             store=db.createObjectStore('file',{autoIncrement: true});
             store.createIndex('nameIndex','name',{unique:false});
         }
-        if(!db.objectStoreNames.contains('block1')){
+        if(!db.objectStoreNames.contains('block')){
             //key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
-            store=db.createObjectStore('block1',{autoIncrement: true});
+            store=db.createObjectStore('q',{autoIncrement: true});
             store.createIndex('nameIndex','name',{unique:false});
             store.createIndex('fileKeyIndex','fileKey',{unique:false});
         }
@@ -70,7 +81,12 @@ function getAll(table,callbackFunc){
             rowData.key=key;
             //var jsonStr = JSON.stringify(cursor.value);
             cursor.continue();
-            data.push(rowData);
+            if(table=='block'&& rowData.status=='finish'){
+
+            }else{
+                data.push(rowData);
+            }
+
         }else{
             callbackFunc(table,data);
         }
@@ -83,11 +99,10 @@ function loginSuccess(){
      win.setPosition('center');
      window.location.href="index.html";
 }
-function queryTable(range,callbackFunc)
-{
-    var transaction = db.transaction("block1");
+function queryTable(range,callbackFunc) {
+    var transaction = db.transaction("block");
     // 通过IDBTransaction得到IDBObjectStore
-    var objectStore = transaction.objectStore("block1");
+    var objectStore = transaction.objectStore("block");
     // 打开游标，遍历table中所有数据
     var index = objectStore.index("fileKeyIndex");
     var data = [];
@@ -106,8 +121,8 @@ function queryTable(range,callbackFunc)
     }
 }
 function dropBlock(key){
-    var transaction=db.transaction('block1','readwrite');
-    var store=transaction.objectStore('block1');
+    var transaction=db.transaction('block','readwrite');
+    var store=transaction.objectStore('block');
     var request =store.delete(parseInt(key));
     request.onsuccess = function (event) {
         console.log("dropBlock sucess="+key);
@@ -160,6 +175,25 @@ function updateDbServerUrl(table,key){
     request.onsuccess=function(e){
         var data=e.target.result;
         data.serverUrl=serverUrl;
+        store.update(data);
+    };
+}
+function updateDb(table,key,data){
+    var transaction=db.transaction(table,'readwrite');
+    var store=transaction.objectStore(table);
+    var request=store.put(data,key);
+    request.onsuccess=function(e){
+        //var data1=e.target.result;
+        //store.put(data);
+    };
+}
+function updateDbWithCallback(table,key,callback){
+    var transaction=db.transaction(table,'readwrite');
+    var store=transaction.objectStore(table);
+    var request=store.get(key);
+    request.onsuccess=function(e){
+        var data=e.target.result;
+        callback(data);
         store.put(data);
     };
 }
@@ -339,172 +373,6 @@ var deleteFolderRecursive = function(path) {
         fs.rmdirSync(path);
     }
 };
-function beginTransFer(){
-    //table内的文件
-        //切分 存入block
-        //将此文件信息发送至服务器
-        //开始 发送小文件 //成功后，更新本地block表
-        //发送合并请求
-        //更改文件状态
-    var table=$("#fileTable").DataTable();
-    var data=table.data();
-    var finishNum=0;
-    data.each( function (d) {
-        if(d.status==""){
-            splitFile(d,function(){
-                //@todo 计算 是否全部完成
-                finishNum++;
-                if(finishNum==data.length){
-                    //@ todo
-                    uploadFiles(data);
-                }
-            });
-        }
-    } );
-    data.each( function (d) {
-        d.status="split";
-        //@todo 更新数据库
-    } );
-    table.clear().draw();
-    data.each(function (d) {
-        $('#fileTable').DataTable().row.add(d).draw();
-    } );
-    data.each(function (d) {
-        //alert(d.key);
-        for(var i=1;i<11;i++){
-            //setTimeout(function(){
-                $('#progressBar'+ d.key).attr('aria-valuenow', i*10);
-                $('#progressBar'+ d.key).css('width', i*10 + '%');
-                $('#progressBar'+ d.key).html(i*10+"%");
-            //}, i*100);
-        }
-    } );
-
-}
-function uploadFiles(data){
-    var index=0;
-    uploadFile(index,data,finishOneFile);
-}
-/**
- * 上传文件，先向服务器端申请fileid
- * @param index
- * @param data
- * @param callbackFunc
- */
-function uploadFile(index,data,callbackFunc){
-    var one=data[index];
-    ////params（name,projectId,path,size,splitStartNum,splitEndNum,md5）
-    var fileParam = {name:one.name,projectId:one.projectId,path:one.path,size:one.realsize,splitStartNum:one.splitStartNum,splitEndNum:one.splitEndNum,md5:one.md5};
-    needle.post(serverUrl+"microseism/addOneFile", fileParam, {}, function(err, resp) {
-        if(!err && resp.statusCode == 200)
-        {
-            var json = resp.body;
-            if (json == null)return;
-            if(json.result != true)return;
-            one.serverId = json.id;
-            one.status = "upload";
-            startUploadBlock(index,data,callbackFunc)
-        }
-
-    });
-}
-function startUploadBlock(order,data,callbackFunc)
-{
-    var one=data[order];
-    var tableBlockData = function (table,data){
-        if(data.length>0){
-            var q = async.queue(function(task, callback) {
-                //console.log('worker is processing task: ', task.name);
-                task.run(callback);
-            }, maxThread);
-            // q.saturated = function() {
-            //     //console.log('all workers to be used');
-            // }
-            // q.empty = function() {
-            //     //console.log('no more tasks waiting');
-            // }
-            q.drain = function() {
-                //console.log('all tasks have been processed');
-                //@todo 修改 @ finish 文件状态
-                one.status = "finish";
-                // $('#fileTable').DataTable().row(data.key).remove().draw();
-                // dropOneFile(one.key);
-                // queryTable("block","nameIndex",
-                //     IDBKeyRange.bound(one.name+"." + one.splitStartNum,one.name+"." + one.splitEndNum,false, true),
-                //     function(table,data) {
-                //         for (var i = 0;i<data.length;i++)
-                //         {
-                //             dropBlock(data[i],key);
-                //             fs.unlinkSync(data[i].path);
-                //         }
-                //     });
-                // 清除temp
-                needle.post(serverUrl+"microseism/finishOneFile", "fileId=" + one.serverId, {}, function(err, resp) {
-                    if(!err && resp.statusCode == 200)
-                    {
-                        alert("传输完成！")
-                    }
-                });
-                callbackFunc(index,data);
-            }
-            var array=[];
-            for (var i = 0;i<data.length;i++) {
-                var blockInfo = data[i];
-                if(blockInfo.fileKey == one.key)
-                {
-                    if (blockInfo.status == "split")
-                    {
-                        //key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
-                        q.push(
-                            {
-                                name:blockInfo.name, run: function(cb){
-
-                                //task -- block
-                                //needle post
-                                //@todo block 状态 //db状态
-                                //params（name,fileId,splitNum,path,size,splitStartNum,splitEndNum,md5，uploadFile（二进制文件））
-
-                                var fileParam = {name:blockInfo.name,fileId:one.serverId,path:blockInfo.path,size:blockInfo.size,splitNum:blockInfo.splitNum,
-                                    splitStartNum:one.splitStartNum,splitEndNum:one.splitEndNum,md5:blockInfo.md5,uploadFile:{file:blockInfo.path,content_type:'image/png'}};
-                                blockInfo.status = "upload";
-                                needle.post(serverUrl+"microseism/uploadOneBlock", fileParam, {multipart: true}, function(err, resp) {
-                                    if(!err && resp.statusCode == 200)
-                                    {
-                                        var json = resp.body;
-                                        if (json == null)return;
-                                        if(json.result != true)return;
-                                        blockInfo.status = "finish";
-                                        cb();
-                                    }
-                                });
-                            }
-                            }
-                            , function(err) {
-                                //console.log('err: ',err);
-                            });
-                    }
-                }
-
-
-            }
-        }
-    }
-    getAll("block1",tableBlockData);
-
-    /**
-     * 定义一个queue，设worker数量
-     */
-
-}
-function finishOneFile(index,data){
-    index++;
-    if(index<data.length){
-        uploadFile(index,data,finishOneFile);
-    }else{
-        //todo 表格状态文件更改
-
-    }
-}
 function splitFile(data,callbackFunc){
     var len = 0;
     var fileSplitIndex=0;
@@ -512,123 +380,62 @@ function splitFile(data,callbackFunc){
         deleteFolderRecursive(tempWorkDir+"fileFolder/"+data.name+"/");
     }
     fs.mkdirSync(tempWorkDir+"fileFolder/"+data.name+"/");
-    var blockDatas = [];
+    $('#tipSpan').html("切分文件:"+ data.name);
     fs.createReadStream(data.path)
         .on('data',function(chunk){
             len+=chunk.length;
             if(len<1024*1024*maxFileSize){
 
             }else{
-                var crypto = require("crypto");
-                var buf=fs.readFileSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex);
-                var str = buf.toString("binary");
-                var md5str = crypto.createHash("md5").update(str).digest("hex");
-                var blockData={
-                    "name":data.name+"."+fileSplitIndex,
-                    "splitNum":fileSplitIndex,
-                    "fileKey":data.key,
-                    "path": tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex,
-                    "size": len,
-                    "status": 'split',
-                    "dateCreated": new Date(),
-                    "lastUpdated": new Date(),
-                    "md5":md5str,
-                }
-                blockDatas.push(blockData)
                 len=0;
                 fileSplitIndex++;
             }
             fs.appendFileSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex,chunk);
         })
         .on("end", function () {
-
-            data.splitStartNum=0;
-            data.splitEndNum=fileSplitIndex;
-
-            //保存block
-            var crypto = require("crypto");
-            var buf=fs.readFileSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex);
-            var str = buf.toString("binary");
-            var md5str = crypto.createHash("md5").update(str).digest("hex");
-            var blockData={
-                "name":data.name+"."+fileSplitIndex,
-                "splitNum":fileSplitIndex,
-                "fileKey":data.key,
-                "path": tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex,
-                "size": len,
-                "status": 'split',
-                "dateCreated": new Date(),
-                "lastUpdated": new Date(),
-                "md5":md5str,
-            }
-            blockDatas.push(blockData);
-            var transaction=db.transaction('block1','readwrite');
-            var store=transaction.objectStore('block1');
-            var i = 0;
-            putNext();
-
-            function putNext() {
-                if (i<blockDatas.length) {
-                    addBlockData(blockDatas[i],function(data,key)
-                    {
-                        data.key = key;
-                        i++;
-                        putNext();
-                    });
-                    // var request =store.add(blockDatas[i]);
-                    // request.onsuccess = function(e1) {
-                    //     var key = e1.target.result;
-                    //     blockDatas[i].key = key;
-                    //     i++;
-                    //     putNext();
-                    // };
-                    // request.onerror = function(e1) {
-                    //   console.log(e1);
-                    // };
-                } else {   // complete
-                    console.log('populate complete');
-                    //@todo file db 同步
-                    data.status = "upload"
-                    //@todo 切分 存入block //上传
-                    callbackFunc();
+            for(var num=0;num<=fileSplitIndex;num++){
+                if(fs.existsSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+num)){
+                    var buf=fs.readFileSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+num);
+                    var str=buf.toString("binary");
+                    var crypto = require("crypto");
+                    var md5str = crypto.createHash("md5").update(str).digest("hex");
+                    var stat=fs.statSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+num);
+                    var blockData={
+                        "name":data.name+"."+num,
+                        "splitNum":num,
+                        "fileKey":data.key,
+                        "path": tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+num,
+                        "size": stat.size,
+                        "status": 'split',
+                        "dateCreated": new Date(),
+                        "lastUpdated": new Date(),
+                        "md5":md5str,
+                    }
+                    addBlockData(blockData,function(key){});
                 }
             }
+            data.splitStartNum=0;
+            data.splitEndNum=fileSplitIndex;
+            filesBlockNum[data.key]=fileSplitIndex;
+            filesRemain[data.key]=fileSplitIndex;
+            data.status="split";
+            var buf=fs.readFileSync(data.path);
+            var str=buf.toString("binary");
+            var crypto = require("crypto");
+            data.md5=crypto.createHash("md5").update(str).digest("hex");
+            updateDb("file",data.key,data);
+            callbackFunc();
         });
 }
 
 function addBlockData(data,callback){
-    var transaction=db.transaction('block1','readwrite');
-    var store=transaction.objectStore('block1');
+    var transaction=db.transaction('block','readwrite');
+    var store=transaction.objectStore('block');
     var objectStoreRequest = store.add(data);
     objectStoreRequest.onsuccess = function(e1) {
         var key=e1.target.result;
-        callback(data,key);
+        callback(key);
     }
-    /*
-     var dbName="fileTransfer";
-     var dbVersion = 1;
-     //var db;
-     var store;
-     var request = window.indexedDB.open(dbName, dbVersion);
-     request.onsuccess = function (event) {
-     db = request.result;
-     var transaction=db.transaction('file','readwrite');
-     var store=transaction.objectStore('file');
-     var objectStoreRequest = store.add(data);
-     objectStoreRequest.onsuccess = function(e1) {
-     var key=e1.target.result;
-     callback(data,key);
-     //return fileId; //id
-     }
-     };
-     request.onerror=function(event){
-     console.log("Error creating/accessing IndexedDB database");
-     };
-     request.onupgradeneeded=function(event){
-     console.log('DB version changed to '+dbVersion);
-     };
-     */
-
 }
 
 function saveConfig(){
@@ -656,50 +463,177 @@ function saveConfig(){
 
 
 }
+
 function showOneFile(dataKey){
-    //@todo
-    var sc = $('#seat-map').seatCharts({
-        map: [  //座位图
-            'aaaaaaaaaa',
-            'aaaaaaaaaa',
-            'aaaaaaaaaa',
-            'aaaaaaaaaa',
-            'aaaaaaaaaa',
-            'aaaaaaaaaa',
-            'aaaaaaaaaa',
-            'aaaaaaaaaa',
-            'aaaaaaaaaa'
-        ],
-        naming : {
-            top : false,
-            getLabel : function (character, row, column) {
-                return column+(row-1)*10;
-            }
-        },
-        legend : { //定义图例
-            node : $('#legend'),
-            items : [
-                [ 'a', 'available',   '未上传' ],
-                [ 'a', 'unavailable', '已上传']
-            ]
-        },
-        click: function () { //点击事件
-            if (this.status() == 'available') { //可选座
-                //alert(this.settings.label);
-                //alert(this.settings.row);
-                //alert(this.settings.column);
-                //sc.get(['1_4', '1_5','1_6']).status('unavailable');
-                return 'selected';
-            } else if (this.status() == 'selected') { //已选中
-                return 'available';
-            } else if (this.status() == 'unavailable') { //已售出
-                return 'unavailable';
-            } else {
-                return this.style();
+    globalShowFileKey=dataKey;
+    var percent=parseInt(((filesBlockNum[dataKey]-filesRemain[dataKey])/filesBlockNum[dataKey])*100);
+    changeSeatPercent(dataKey,44);
+    $('#modalShowblock').modal('show');
+}
+function changeSeatPercent(key,num){
+    if(key==globalShowFileKey){
+        for(var i=1;i<101;i++){
+            if(i<=num){
+                if(i<90){
+                    globalSeat.get([((i+11)+"").substr(0,1)+"_"+((i+11)+"").substr(1,2)]).status('unavailable');
+                }else{
+                    globalSeat.get([((i+11)+"").substr(0,2)+"_"+((i+11)+"").substr(2,3)]).status('unavailable');
+                }
             }
         }
+
+    }
+
+}
+function beginTransFer(){
+    $('#fileSimple').fileinput('disable');
+    $("#fileUpload").attr("disabled","disabled");
+    $('#message-box-success').show();
+    for(var i=0;i<10;i++){
+        setTimeout(function(){
+            $('#layoutProgressBar').attr('aria-valuenow', i*10);
+            $('#layoutProgressBar').css('width', i*10 + '%');
+        }, i*1000);
+    }
+    //table内的文件
+        //切分 存入block
+        //将此文件信息发送至服务器
+        //开始 发送小文件 //成功后，更新本地block表
+        //发送合并请求
+        //更改文件状态
+    var table=$("#fileTable").DataTable();
+    var data=table.data();
+    var finishNum=0;
+    data.each( function (d) {
+        if(d.status==""){
+            splitFile(d,function(){
+                finishNum++;
+                if(finishNum==data.length){
+                    uploadFiles(data);
+                }
+            });
+        }else{
+            finishNum++;
+        }
+    } );
+    data.each( function (d) {
+        if(d.status==""){
+            d.status="split";
+        }
+    } );
+    table.clear().draw();
+    data.each(function (d) {
+        $('#fileTable').DataTable().row.add(d).draw();
+    } );
+}
+function uploadFiles(fileData){
+    var uploadNeedNum=fileData.length;
+    fileData.each(function (d) {
+        if(d.status=="split"){
+            uploadInitFile(d,beginUploadBlocks,uploadNeedNum);
+        }else{
+            uploadNeedNum--;
+        }
+
     });
-    //已售出的座位
-    sc.get(['1_1', '1_2','1_3']).status('unavailable');
-    $('#modalShowblock').modal('show');
+}
+function uploadInitFile(data,callbackFunc,uploadNeedNum){
+    ////params（name,projectId,path,size,splitStartNum,splitEndNum,md5）
+    var fileParam = {
+        name:data.name,projectId:data.projectId,path:data.path,size:data.realsize,
+        splitStartNum:data.splitStartNum,splitEndNum:data.splitEndNum,md5:data.md5
+    };
+    needle.post(serverUrl+"microseism/addOneFile", fileParam, {}, function(err, resp) {
+        if(!err && resp.statusCode == 200) {
+            //console.log(resp.body);
+            var json = resp.body;
+            if(json.result){
+                uploadNeedNum--;
+                data.serverId = json.id;
+                data.status = "upload";
+                $('#statusSpan'+data.key).html("upload");
+                filesServerId[data.key]=data.serverId;
+                updateDb("file",data.key,data);
+                if(uploadNeedNum==0){
+                    callbackFunc();
+                }
+            }else{
+                alert(json.message);
+                $('#fileSimple').fileinput('enable');
+                $("#fileUpload").removeAttr("disabled");
+            }
+        }
+
+    });
+}
+function beginUploadBlocks(){
+    getAll("block",startUploadBlocks);
+}
+function startUploadBlocks(table,data){
+    allblocks=data;
+    uploadBlockQueue();
+}
+function uploadBlockQueue(){
+    $('#message-box-success').hide();
+    if(allblocks.length>0){
+        for (var i = 0;i<maxThread;i++){
+            uploadOneBlock();
+        }
+    }else{
+        //允许操作 按钮和选择框
+        $('#fileSimple').fileinput('enable');
+        $("#fileUpload").removeAttr("disabled");
+    }
+}
+function uploadOneBlock(){
+    if(allblocks.length>0){
+        var blockInfo = allblocks.shift();//pop()
+        if (blockInfo.status == "finish") {
+            uploadOneBlock();
+        }else{
+            var fileParam = {name:encodeURI(blockInfo.name),fileId:filesServerId[blockInfo.fileKey],path:encodeURI(blockInfo.path),size:blockInfo.size,splitNum:blockInfo.splitNum,
+                splitStartNum:0,splitEndNum:filesBlockNum[blockInfo.fileKey],md5:blockInfo.md5,uploadFile:{file:blockInfo.path,content_type:'image/png'}};
+            blockInfo.status = "upload";
+            updateDb('block',blockInfo.key,blockInfo);
+            needle.post(serverUrl+"microseism/uploadOneBlockByQueue", fileParam, {multipart: true}, function(err, resp) {
+                if(!err && resp.statusCode == 200) {
+                    var json = resp.body;
+                    if(json.result){
+                        if(filesRemain[blockInfo.fileKey]>0) {
+                            filesRemain[blockInfo.fileKey] = filesRemain[blockInfo.fileKey] - 1;
+                        }
+                        blockInfo.status = "finish";
+                        updateDb('block',blockInfo.key,blockInfo);
+                        //修改进度条，及百分比
+                        var all=filesBlockNum[blockInfo.fileKey];
+                        var remain=filesRemain[blockInfo.fileKey];
+                        var percent=parseInt(((all-remain)/all)*100+"");
+                        $('#progressBar'+ blockInfo.fileKey).attr('aria-valuenow', percent);
+                        $('#progressBar'+ blockInfo.fileKey).css('width', percent + '%');
+                        $('#progressBar'+ blockInfo.fileKey).html(percent+"%");
+                        //console.log(all+"+"+remain+"="+percent);
+                        changeSeatPercent(blockInfo.fileKey,percent);
+                        //完成一个file的状态
+                        if(filesRemain[blockInfo.fileKey]==0){
+                            updateDbWithCallback('file',blockInfo.fileKey,function(data){
+                                data.status = "finish";
+                            });
+                            $('#statusSpan'+data.key).html("finish");
+                            needle.post(serverUrl+"microseism/finishOneFile", {fileId:fileParam.fileId}, {multipart: true}, function(err, resp) {
+
+                            });
+                        }
+                        uploadOneBlock();
+                    }else{
+                        alert(json.error+json.message+fileParam.size);
+                        //return;
+                    };
+                }
+            });
+        }
+    }else{
+        //全部上传完毕
+        $('#fileSimple').fileinput('enable');
+        $("#fileUpload").removeAttr("disabled");
+    }
 }
