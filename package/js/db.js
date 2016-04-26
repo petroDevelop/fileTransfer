@@ -53,9 +53,9 @@ function initDB(){
         }
         if(!db.objectStoreNames.contains('block')){
             //key,name,splitNum,fileKey,path,size,status(split,upload,finish),md5,dateCreated,lastUpdated
-            store=db.createObjectStore('q',{autoIncrement: true});
+            store=db.createObjectStore('block',{autoIncrement: true});
             store.createIndex('nameIndex','name',{unique:false});
-            store.createIndex('fileKeyIndex','fileKey',{unique:false});
+            //store.createIndex('fileKeyIndex','fileKey',{unique:false});
         }
         console.log('DB version changed to '+dbVersion);
     };
@@ -94,7 +94,7 @@ function getAll(table,callbackFunc){
 }
 function loginSuccess(){
      var win=gui.Window.get();
-     win.setMinimumSize(900, 750);
+     win.setMinimumSize(1200, 800);
      win.setMaximumSize(1200, 800);
      win.setPosition('center');
      window.location.href="index.html";
@@ -194,7 +194,7 @@ function updateDbWithCallback(table,key,callback){
     request.onsuccess=function(e){
         var data=e.target.result;
         callback(data);
-        store.put(data);
+        store.put(data,key);
     };
 }
 function insertData(table,data,callbackFunc){
@@ -376,10 +376,13 @@ var deleteFolderRecursive = function(path) {
 function splitFile(data,callbackFunc){
     var len = 0;
     var fileSplitIndex=0;
-    if(fs.existsSync(tempWorkDir+"fileFolder/"+data.name+"/")){
-        deleteFolderRecursive(tempWorkDir+"fileFolder/"+data.name+"/");
+    if(!fs.existsSync(tempWorkDir+"fileFolder/"+data.projectId+"/")){
+        fs.mkdirSync(tempWorkDir+"fileFolder/"+data.projectId+"/");
     }
-    fs.mkdirSync(tempWorkDir+"fileFolder/"+data.name+"/");
+    if(fs.existsSync(tempWorkDir+"fileFolder/"+data.projectId+"/"+data.name+"/")){
+        deleteFolderRecursive(tempWorkDir+"fileFolder/"+data.projectId+"/"+data.name+"/");
+    }
+    fs.mkdirSync(tempWorkDir+"fileFolder/"+data.projectId+"/"+data.name+"/");
     $('#tipSpan').html("切分文件:"+ data.name);
     fs.createReadStream(data.path)
         .on('data',function(chunk){
@@ -390,21 +393,21 @@ function splitFile(data,callbackFunc){
                 len=0;
                 fileSplitIndex++;
             }
-            fs.appendFileSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+fileSplitIndex,chunk);
+            fs.appendFileSync(tempWorkDir+"fileFolder/"+data.projectId+"/"+data.name+"/"+data.name+"."+fileSplitIndex,chunk);
         })
         .on("end", function () {
             for(var num=0;num<=fileSplitIndex;num++){
-                if(fs.existsSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+num)){
-                    var buf=fs.readFileSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+num);
+                if(fs.existsSync(tempWorkDir+"fileFolder/"+data.projectId+"/"+data.name+"/"+data.name+"."+num)){
+                    var buf=fs.readFileSync(tempWorkDir+"fileFolder/"+data.projectId+"/"+data.name+"/"+data.name+"."+num);
                     var str=buf.toString("binary");
                     var crypto = require("crypto");
                     var md5str = crypto.createHash("md5").update(str).digest("hex");
-                    var stat=fs.statSync(tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+num);
+                    var stat=fs.statSync(tempWorkDir+"fileFolder/"+data.projectId+"/"+data.name+"/"+data.name+"."+num);
                     var blockData={
                         "name":data.name+"."+num,
                         "splitNum":num,
                         "fileKey":data.key,
-                        "path": tempWorkDir+"fileFolder/"+data.name+"/"+data.name+"."+num,
+                        "path": tempWorkDir+"fileFolder/"+data.projectId+"/"+data.name+"/"+data.name+"."+num,
                         "size": stat.size,
                         "status": 'split',
                         "dateCreated": new Date(),
@@ -423,6 +426,7 @@ function splitFile(data,callbackFunc){
             var str=buf.toString("binary");
             var crypto = require("crypto");
             data.md5=crypto.createHash("md5").update(str).digest("hex");
+            data.isSplitOver=true;
             updateDb("file",data.key,data);
             callbackFunc();
         });
@@ -466,19 +470,35 @@ function saveConfig(){
 
 function showOneFile(dataKey){
     globalShowFileKey=dataKey;
-    var percent=parseInt(((filesBlockNum[dataKey]-filesRemain[dataKey])/filesBlockNum[dataKey])*100);
-    changeSeatPercent(dataKey,44);
+    var percent=0;
+    if(filesBlockNum[dataKey]==0){
+        percent=100;
+    }else{
+        percent=parseInt(((filesBlockNum[dataKey]-filesRemain[dataKey])/filesBlockNum[dataKey])*100);
+    }
+    changeSeatPercent(dataKey,percent);
     $('#modalShowblock').modal('show');
 }
 function changeSeatPercent(key,num){
     if(key==globalShowFileKey){
+        var oneBit=0;
+        var tenBit=0;
+        if(num>1){
+            globalSeat.get(["1_1"]).status('unavailable');
+        }
         for(var i=1;i<101;i++){
+            if(i<90){
+                oneBit=parseInt(((i+10)+"").substr(0,1));
+                tenBit=parseInt(((i+10)+"").substr(1,2))+1;
+            }else{
+                oneBit=parseInt(((i+10)+"").substr(0,2));
+                tenBit=parseInt(((i+10)+"").substr(2,3))+1;
+            }
             if(i<=num){
-                if(i<90){
-                    globalSeat.get([((i+11)+"").substr(0,1)+"_"+((i+11)+"").substr(1,2)]).status('unavailable');
-                }else{
-                    globalSeat.get([((i+11)+"").substr(0,2)+"_"+((i+11)+"").substr(2,3)]).status('unavailable');
-                }
+                globalSeat.get([oneBit+"_"+tenBit]).status('unavailable');
+            }else{
+
+                globalSeat.get([oneBit+"_"+tenBit]).status('available');
             }
         }
 
@@ -486,6 +506,18 @@ function changeSeatPercent(key,num){
 
 }
 function beginTransFer(){
+    var table=$("#fileTable").DataTable();
+    var data=table.data();
+    var needNum=0;
+    data.each(function (d){
+        if(d.status==""){
+            needNum++;
+        }
+    });
+    if(needNum==0){
+        alert("请选择文件");
+        return true;
+    }
     $('#fileSimple').fileinput('disable');
     $("#fileUpload").attr("disabled","disabled");
     $('#message-box-success').show();
@@ -493,27 +525,30 @@ function beginTransFer(){
         setTimeout(function(){
             $('#layoutProgressBar').attr('aria-valuenow', i*10);
             $('#layoutProgressBar').css('width', i*10 + '%');
-        }, i*1000);
+        }, i*2000);
     }
-    //table内的文件
-        //切分 存入block
-        //将此文件信息发送至服务器
-        //开始 发送小文件 //成功后，更新本地block表
-        //发送合并请求
-        //更改文件状态
-    var table=$("#fileTable").DataTable();
-    var data=table.data();
-    var finishNum=0;
+
+    if(!fs.existsSync(tempWorkDir+"fileFolder/")){
+        fs.mkdirSync(tempWorkDir+"fileFolder/");
+    }
     data.each( function (d) {
         if(d.status==""){
+            d.isSplitOver=false;
             splitFile(d,function(){
-                finishNum++;
-                if(finishNum==data.length){
+                var allSplitOver=true;
+                data.each(function (d){
+                    if(!d.isSplitOver){
+                        allSplitOver=false;
+                    }
+                });
+                if(allSplitOver){
+                    $('#tipSpan').html("全部切分完成");
                     uploadFiles(data);
                 }
+
             });
         }else{
-            finishNum++;
+            d.isSplitOver=true;
         }
     } );
     data.each( function (d) {
@@ -527,17 +562,18 @@ function beginTransFer(){
     } );
 }
 function uploadFiles(fileData){
-    var uploadNeedNum=fileData.length;
-    fileData.each(function (d) {
+    console.log("begin uploadFiles");
+    fileData.each(function(d){
+        $('#tipSpan').html("与服务器同步文件信息:"+ d.name);
         if(d.status=="split"){
-            uploadInitFile(d,beginUploadBlocks,uploadNeedNum);
+            d.isUploadInit=false;
+            uploadInitFile(d,beginUploadBlocks,fileData);
         }else{
-            uploadNeedNum--;
+            d.isUploadInit=true;
         }
-
     });
 }
-function uploadInitFile(data,callbackFunc,uploadNeedNum){
+function uploadInitFile(data,callbackFunc,fileData){
     ////params（name,projectId,path,size,splitStartNum,splitEndNum,md5）
     var fileParam = {
         name:data.name,projectId:data.projectId,path:data.path,size:data.realsize,
@@ -548,15 +584,23 @@ function uploadInitFile(data,callbackFunc,uploadNeedNum){
             //console.log(resp.body);
             var json = resp.body;
             if(json.result){
-                uploadNeedNum--;
                 data.serverId = json.id;
-                data.status = "upload";
+                data.status = "upload"
+                data.isUploadInit=true;
                 $('#statusSpan'+data.key).html("upload");
                 filesServerId[data.key]=data.serverId;
                 updateDb("file",data.key,data);
-                if(uploadNeedNum==0){
+                var allInitOver=true;
+                fileData.each(function (d){
+                    if(!d.isUploadInit){
+                        allInitOver=false;
+                    }
+                });
+                if(allInitOver){
+                    $('#tipSpan').html("同步文件信息完成");
                     callbackFunc();
                 }
+
             }else{
                 alert(json.message);
                 $('#fileSimple').fileinput('enable');
@@ -567,9 +611,11 @@ function uploadInitFile(data,callbackFunc,uploadNeedNum){
     });
 }
 function beginUploadBlocks(){
+    $('#tipSpan').html("获取全部文件块任务");
     getAll("block",startUploadBlocks);
 }
 function startUploadBlocks(table,data){
+    $('#tipSpan').html("开始上传文件块任务");
     allblocks=data;
     uploadBlockQueue();
 }
@@ -577,7 +623,10 @@ function uploadBlockQueue(){
     $('#message-box-success').hide();
     if(allblocks.length>0){
         for (var i = 0;i<maxThread;i++){
-            uploadOneBlock();
+            setTimeout(function(){
+                uploadOneBlock();
+            },3);
+
         }
     }else{
         //允许操作 按钮和选择框
@@ -608,20 +657,23 @@ function uploadOneBlock(){
                         var all=filesBlockNum[blockInfo.fileKey];
                         var remain=filesRemain[blockInfo.fileKey];
                         var percent=parseInt(((all-remain)/all)*100+"");
+                        console.log('#progressBar'+ blockInfo.fileKey+" change to "+percent);
                         $('#progressBar'+ blockInfo.fileKey).attr('aria-valuenow', percent);
                         $('#progressBar'+ blockInfo.fileKey).css('width', percent + '%');
                         $('#progressBar'+ blockInfo.fileKey).html(percent+"%");
                         //console.log(all+"+"+remain+"="+percent);
                         changeSeatPercent(blockInfo.fileKey,percent);
                         //完成一个file的状态
-                        if(filesRemain[blockInfo.fileKey]==0){
-                            updateDbWithCallback('file',blockInfo.fileKey,function(data){
+
+                        if(filesRemain[blockInfo.fileKey]==0) {
+                            updateDbWithCallback('file', blockInfo.fileKey, function (data) {
                                 data.status = "finish";
                             });
-                            $('#statusSpan'+data.key).html("finish");
-                            needle.post(serverUrl+"microseism/finishOneFile", {fileId:fileParam.fileId}, {multipart: true}, function(err, resp) {
-
-                            });
+                            $('#statusSpan' + blockInfo.fileKey).html("finish");
+                            $('#progressBar'+ blockInfo.fileKey).attr('aria-valuenow', 100);
+                            $('#progressBar'+ blockInfo.fileKey).css('width','100%');
+                            $('#progressBar'+ blockInfo.fileKey).html("100%");
+                            //needle.post(serverUrl+"microseism/finishOneFile", {fileId:fileParam.fileId}, {multipart: true}, function(err, resp) {});
                         }
                         uploadOneBlock();
                     }else{
@@ -636,4 +688,41 @@ function uploadOneBlock(){
         $('#fileSimple').fileinput('enable');
         $("#fileUpload").removeAttr("disabled");
     }
+}
+function timeStamp2String(){
+    var datetime = new Date();
+    var year = datetime.getFullYear();
+    var month = datetime.getMonth() + 1 < 10 ? "0" + (datetime.getMonth() + 1) : datetime.getMonth() + 1;
+    var date = datetime.getDate() < 10 ? "0" + datetime.getDate() : datetime.getDate();
+    var hour = datetime.getHours()< 10 ? "0" + datetime.getHours() : datetime.getHours();
+    var minute = datetime.getMinutes()< 10 ? "0" + datetime.getMinutes() : datetime.getMinutes();
+    var second = datetime.getSeconds()< 10 ? "0" + datetime.getSeconds() : datetime.getSeconds();
+    return year + "-" + month + "-" + date+"["+hour+"h"+minute+"m]";
+}
+
+var showNotification = function (icon, title, body) {
+    //var NW=require('nw.gui');
+    if (icon && icon.match(/^\./)) {
+        icon = icon.replace('.', 'file://' + process.cwd());
+    }
+
+    var notification = new Notification(title, {icon: icon, body: body});
+
+    notification.onclick = function () {
+       // writeLog("Notification clicked");
+        //NW.Window.get().focus();
+        gui.Window.get().focus();
+    };
+
+    notification.onclose = function () {
+        //writeLog("Notification closed");
+        //NW.Window.get().focus();
+        gui.Window.get().focus();
+    };
+
+    notification.onshow = function () {
+       // writeLog("-----<br>" + title);
+    };
+
+    return notification;
 }

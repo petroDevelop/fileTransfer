@@ -85,9 +85,11 @@ gulp.task('nw', function () {
 
 
 gulp.task('zip', function () {
-    return gulp.src('./distribute/app/compass/package/*')
+     gulp.src('./distribute/app/compass/package/*')
         .pipe(zip('package.zip'))
         .pipe(gulp.dest('./distribute/app/compass'));
+    return  gulp.src(['distribute/app/compass/package/*'], {read: false})
+        .pipe(clean({force: true}));
 });
 gulp.task('install', function () {
     run('cd distribute/app/compass & npm i').exec()  // prints "Hello World\n".
@@ -95,6 +97,6 @@ gulp.task('install', function () {
 });
 //'jshint','clean','copy','index','install','nw'
 gulp.task('run', function(cb) {
-    runSequence('clean','copy','index','install','nw', cb);
+    runSequence('clean','copy','install','zip', cb);
 });
-gulp.task('default', ['index']);
+gulp.task('default', ['run']);

@@ -218,7 +218,7 @@
                     <div class="row">
                         <div class="col-sm-12 text-center">
                             <div class="titlebar">
-                                <h2 class="animated" data-animation="fadeIn" data-animation-delay="700">选择项目及文件</h2>
+                                <h2 class="animated" data-animation="fadeIn" data-animation-delay="700">选择项目文件目录</h2>
                                 <div class="subscribe-logo animated" data-animation="fadeIn" data-animation-delay="700"></div>
                             </div>
                         </div>
@@ -226,33 +226,29 @@
 
                     <!-- section newsletter -->
                     <div class="row">
-                    <div class="col-sm-12 text-center">
+                    <div class="col-sm-12">
                         <div class="footerbar animated" data-animation="fadeIn" data-animation-delay="500">
 
                             <div class="form-group">
-                                <label class="col-sm-3 control-label">选择项目</label>
+                                <label class="col-sm-3 control-label">选择项目文件目录</label>
                                 <div class="col-md-3">
-                                    <select class="form-control select dropup" id="projectSelect" data-style="">
+                                    <select class="form-control select " id="projectSelect" data-style="">
 
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <input type="file" multiple class="btn btn-danger"  id="fileSimple"/>
+                                    <input type="file" multiple class="btn btn-danger" nwdirectory id="fileSimple"/>
                                     <input type="button"   class="btn btn-danger" onclick="beginTransFer()" value="开始传送" id="fileUpload"/>
                                 </div>
                             </div>
-
-                        </div>
-                    </div>
-                </div>
-                    <div class="row">
-                        <div class="col-sm-12" style="padding: 50px">
-                            <div class="footerbar animated" data-animation="fadeIn" data-animation-delay="500">
-                                <table id="fileTable" class="table datatable table-hover">
-                                </table>
+                            <div class="form-group col-md-12">
+                            <table id="fileTable" class="table datatable table-hover">
+                            </table>
                             </div>
                         </div>
                     </div>
+                </div>
+
 
                 </div>
                 <!-- end Subscribe -->

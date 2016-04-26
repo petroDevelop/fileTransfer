@@ -52,6 +52,7 @@ $(function() {
         fileType: "any"
     });
     $('#fileSimple').on('fileselect', function(event, numFiles, label) {
+        $("#fileUpload").attr("disabled","disabled");
         var files = event.target.files;
         var projectId=$('#projectSelect').val();
         var projectName=$("#projectSelect").find("option:selected").text();
@@ -59,22 +60,52 @@ $(function() {
         for (var fileIndex=0;fileIndex<files.length;fileIndex++) {
             var file=files[fileIndex];
             var fileId=0;
-            var fileData={
-                "projectId":projectId,
-                "projectName":projectName,
-                "rigName":rigName,
-                "name": file.name,
-                "size": (file.size/(1024*1024)).toFixed(3)+"M",
-                "realsize": file.size,
-                "path": file.path,
-                "status": "",
-                "time": file.lastModifiedDate,
-                "progress":0
+            //压缩目录为zip
+            showNotification("./icons/coffee.png", "压缩目录", '开始压缩目录'+file.name);
+            var archiver = require('archiver');
+            var zipName=file.name+"("+timeStamp2String()+").zip";
+            if(!fs.existsSync(tempWorkDir+"fileFolder/zip/"+projectId+"/")){
+                if(!fs.existsSync(tempWorkDir+"fileFolder/")){
+                    fs.mkdirSync(tempWorkDir+"fileFolder/");
+                }
+                if(!fs.existsSync(tempWorkDir+"fileFolder/zip/")){
+                    fs.mkdirSync(tempWorkDir+"fileFolder/zip/");
+                }
+                fs.mkdirSync(tempWorkDir+"fileFolder/zip/"+projectId+"/");
             }
-            addFileData(fileData,function(data,key){
-                data.key=key;
-                $('#fileTable').DataTable().row.add(data).draw();
+
+            var output = fs.createWriteStream(tempWorkDir+"fileFolder/zip/"+projectId+"/"+zipName);
+            var archive = archiver('zip');
+            archive.on('error', function(err){
+                throw err;
             });
+            output.on('close', function() {
+                console.log(archive.pointer() + ' total bytes');
+                var stat=fs.statSync(tempWorkDir+"fileFolder/zip/"+projectId+"/"+zipName);
+                var fileData={
+                    "projectId":projectId,
+                    "projectName":projectName,
+                    "rigName":rigName,
+                    "name": zipName,
+                    "size": (stat.size/(1024*1024)).toFixed(3)+"M",
+                    "realsize": stat.size,
+                    "path": tempWorkDir+"fileFolder/zip/"+projectId+"/"+zipName,
+                    "status": "",
+                    "time": stat.ctime,
+                    "progress":0
+                }
+                addFileData(fileData,function(data,key){
+                    data.key=key;
+                    $('#fileTable').DataTable().row.add(data).draw();
+                });
+                showNotification("./icons/camera.png", "压缩目录", '目录压缩完成');
+                $("#fileUpload").removeAttr("disabled");
+            });
+            archive.pipe(output);
+            archive.bulk([
+                { src: [file.path+'/**']}
+            ]);
+            archive.finalize();
         }
 
     });
@@ -97,7 +128,9 @@ $(function() {
             { title:'操作',orderable: false, render: function ( data, type, rowData, meta ) {
                 //var option = '<a ><span class="fa fa-eye" style="cursor: pointer;color:green;" title="编辑"></span></a>';
                 var option  =  '<a class="deleteControl" data-key="'+rowData.key+'"><span class="fa fa-times" style="cursor: pointer;color:red;" title="删除"></span></a>';
-                if(rowData.status){
+                if(rowData.status=='finish'){
+
+                }else{
                     option  =  '<a class="detailControl" data-key="'+rowData.key+'" ><span class="fa fa-eye" style="cursor: pointer;color:green;" title="编辑"></span></a>';
                 }
                 return option;
@@ -140,11 +173,7 @@ $(function() {
             { data: 'size',title:'文件大小',orderable: false,searchable:false },
             { data: 'projectName',title:'隶属项目',orderable: false,searchable:false },
             { data: 'path',title:'路径',orderable: false,searchable:false },
-            { data: 'status',title:'状态',orderable: false,searchable:false },
-            { title:'操作',orderable: false, render: function ( data, type, rowData, meta ) {
-                var option  =  '<a class="detailControl" data-key="'+rowData.key+'" ><span class="fa fa-eye" style="cursor: pointer;color:green;" title="编辑"></span></a>'
-                return option;
-            } }
+            { data: 'status',title:'状态',orderable: false,searchable:false }
         ],
         searching: false,
         paging: true,
