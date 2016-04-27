@@ -73,13 +73,13 @@
         if(!fs.existsSync(tempPath)){
             fs.mkdirSync(tempPath);
         }
-        tempPath=tempPath+"Default/"
+        tempPath=tempPath+"Default"
         if(!fs.existsSync(tempPath)){
             fs.mkdirSync(tempPath);
         }
     }
-    console.log("tempPath="+tempPath);
-    setTempWorkDir(tempPath);
+    //console.log("tempPath="+tempPath);
+    setTempWorkDir(tempPath+"/");
     initDB();
 </script>
 </body>

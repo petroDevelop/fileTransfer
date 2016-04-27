@@ -138,7 +138,7 @@ function handleUserData(table,data){
         serverUrl=data[0].serverUrl;
         maxFileSize=data[0].maxFileSize;
         maxThread=data[0].maxThread;
-        tempWorkDir=data[0].tempWorkDir;
+        tempWorkDir=data[0].tempWorkDir+"/";
         if(userId!=="0"){
             loginSuccess();
         }
