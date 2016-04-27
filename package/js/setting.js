@@ -52,6 +52,7 @@ $(function() {
         fileType: "any"
     });
     $('#fileSimple').on('fileselect', function(event, numFiles, label) {
+        $('#fileSimple').fileinput('disable');
         $("#fileUpload").attr("disabled","disabled");
         var files = event.target.files;
         var projectId=$('#projectSelect').val();
@@ -61,7 +62,7 @@ $(function() {
             var file=files[fileIndex];
             var fileId=0;
             //压缩目录为zip
-            showNotification("./icons/coffee.png", "压缩目录", '开始压缩目录'+file.name);
+            showNotification("./package/icons/coffee.png", "压缩目录", '开始压缩目录'+file.name);
             var archiver = require('archiver');
             var zipName=file.name+"("+timeStamp2String()+").zip";
             if(!fs.existsSync(tempWorkDir+"fileFolder/zip/"+projectId+"/")){
@@ -80,7 +81,7 @@ $(function() {
                 throw err;
             });
             output.on('close', function() {
-                console.log(archive.pointer() + ' total bytes');
+                //console.log(archive.pointer() + ' total bytes');
                 var stat=fs.statSync(tempWorkDir+"fileFolder/zip/"+projectId+"/"+zipName);
                 var fileData={
                     "projectId":projectId,
@@ -98,7 +99,8 @@ $(function() {
                     data.key=key;
                     $('#fileTable').DataTable().row.add(data).draw();
                 });
-                showNotification("./icons/camera.png", "压缩目录", '目录压缩完成');
+                showNotification("./package/icons/camera.png", "压缩目录", '目录压缩完成');
+                $('#fileSimple').fileinput('enable');
                 $("#fileUpload").removeAttr("disabled");
             });
             archive.pipe(output);
@@ -128,7 +130,7 @@ $(function() {
             { title:'操作',orderable: false, render: function ( data, type, rowData, meta ) {
                 //var option = '<a ><span class="fa fa-eye" style="cursor: pointer;color:green;" title="编辑"></span></a>';
                 var option  =  '<a class="deleteControl" data-key="'+rowData.key+'"><span class="fa fa-times" style="cursor: pointer;color:red;" title="删除"></span></a>';
-                if(rowData.status=='finish'){
+                if(rowData.status==''){
 
                 }else{
                     option  =  '<a class="detailControl" data-key="'+rowData.key+'" ><span class="fa fa-eye" style="cursor: pointer;color:green;" title="编辑"></span></a>';

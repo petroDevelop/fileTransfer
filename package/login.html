@@ -67,6 +67,19 @@
     addTitlebar("right-titlebar", "right-titlebar.png", "文件传输系统客户端");
     focusTitlebars(true);
     gui.Window.get().show();
+    var tempPath=gui.App.dataPath;
+    if(tempPath.indexOf("AppData")>0 && tempPath.indexOf("User Data")<=0 && tempPath.indexOf("Default")<=0){
+        tempPath=tempPath+"/User Data/"
+        if(!fs.existsSync(tempPath)){
+            fs.mkdirSync(tempPath);
+        }
+        tempPath=tempPath+"Default/"
+        if(!fs.existsSync(tempPath)){
+            fs.mkdirSync(tempPath);
+        }
+    }
+    console.log("tempPath="+tempPath);
+    setTempWorkDir(tempPath);
     initDB();
 </script>
 </body>

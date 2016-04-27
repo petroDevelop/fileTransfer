@@ -9,11 +9,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "async": "^1.5.2",
-    "binary-split": "^1.0.2",
+    "archiver": "^1.0.0",
     "crypto": "0.0.3",
     "needle": "^1.0.0",
-    "simplesync": "0.0.4",
     "unzip": "^0.1.11"
   },
   "webkit": {
@@ -27,11 +25,11 @@
     "title": "filetransfer",
     "toolbar": false,
     "position": "center",
-    "width": 310,
-    "height": 319,
-    "min_width": 310,
-    "min_height": 319,
-    "max_width": 310,
-    "max_height": 319
+    "width": 360,
+    "height": 360,
+    "min_width": 360,
+    "min_height": 360,
+    "max_width": 360,
+    "max_height": 360
   }
 }

@@ -14,6 +14,7 @@ var imagemin = require('gulp-imagemin');
 var gulpif = require('gulp-if');
 var run = require('gulp-run');
 const zip = require('gulp-zip');
+var flatten = require('gulp-flatten');
 var runSequence = require('gulp-run-sequence');
 
 /*
@@ -30,15 +31,25 @@ var filter = require('gulp-filter');
 gulp.task('index', function () {
    // var assets = useref.assets();
     return gulp.src('distribute/app/source/**')
-        .pipe(gulpif('**/*.png', imagemin()))
-        .pipe(gulpif('**/*.jpg', imagemin()))
-        .pipe(gulpif('**/*.gif', imagemin()))
+        .pipe(useref())
         .pipe(gulpif('**/*.js', uglify()))
         .pipe(gulpif('**/*.css', minifyCss()))
-        .pipe(useref())
+
+        .pipe(gulp.dest('distribute/app/compass'));
+});
+gulp.task('image', function () {
+    // var assets = useref.assets();
+    return gulp.src('distribute/app/source/**/*.+(jpeg|jpg|png|gif)')
+        .pipe(imagemin())
         .pipe(gulp.dest('distribute/app/compass'));
 });
 
+
+gulp.task('fonts', function () {
+    return gulp.src('distribute/app/source/**/*.{eot,svg,ttf,woff,otf}')
+        .pipe(flatten())
+        .pipe(gulp.dest('distribute/app/compass'));
+});
 // 语法检查
 gulp.task('jshint', function () {
     return gulp.src('package/js/*.js')
@@ -53,7 +64,8 @@ gulp.task('copy', function () {
     gulp.src('loading.gif').pipe(gulp.dest('distribute/app/source/'));
     gulp.src('load.html').pipe(gulp.dest('distribute/app/source/'));
     //gulp.src('package/!*') //只复制单层目录及文件
-    return gulp.src('package/**/*').pipe(gulp.dest('distribute/app/source/package/'))
+    gulp.src('package/**/*').pipe(gulp.dest('distribute/app/source/package/'));
+    return;
 
 });
 gulp.task('clean', function () {
@@ -97,6 +109,6 @@ gulp.task('install', function () {
 });
 //'jshint','clean','copy','index','install','nw'
 gulp.task('run', function(cb) {
-    runSequence('clean','copy','install','zip', cb);
+    runSequence('clean','copy','index','image','fonts', cb);
 });
-gulp.task('default', ['run']);
+gulp.task('default', ['nw']);

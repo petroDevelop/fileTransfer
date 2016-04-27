@@ -1,8 +1,5 @@
-/**
- * Created by Administrator on 2016/4/15.
- */
-var serverUrl="http://localhost:8080/fileReceiver/";
-var userKey="";
+var serverUrl="http://219.141.214.13/fileReceiver/";
+var userKey="0";
 var userId="0";
 var username="";
 var maxFileSize=1;
@@ -14,6 +11,7 @@ var filesBlockNum={};
 var filesServerId={};
 //文件名对应的未完成block数目
 var filesRemain={};
+var allFileData;
 //全部文件块任务
 var allblocks=[];
 
@@ -30,14 +28,12 @@ function initDB(){
     var store;
     var request = window.indexedDB.open(dbName, dbVersion);
     request.onsuccess = function (event) {
-        console.log("Success creating/accessing IndexedDB database");
+        //console.log("Success creating/accessing IndexedDB database");
         db =event.target.result; //request.result;
-        //读取远程服务器地址
         getAll("user",handleUserData);
-        //若没有则插入一条记录
     };
     request.onerror=function(event){
-        console.log("Error creating/accessing IndexedDB database");
+        //console.log("Error creating/accessing IndexedDB database");
     };
     request.onupgradeneeded=function(event){
         db=event.target.result;
@@ -57,14 +53,19 @@ function initDB(){
             store.createIndex('nameIndex','name',{unique:false});
             //store.createIndex('fileKeyIndex','fileKey',{unique:false});
         }
-        console.log('DB version changed to '+dbVersion);
+        showNotification("./package/icons/car.png","提示","数据库新建成功");
+        //console.log('DB version changed to '+dbVersion);
+        setTimeout(function(){
+            getAll("user",handleUserData);
+        },700);
     };
-
-
 }
+
 function deleteDB(){
     var dbName="fileTransfer";
+    db.close();
     window.indexedDB.deleteDatabase(dbName);
+    initDB();
 }
 function getAll(table,callbackFunc){
     // 通过IDBDatabase得到IDBTransaction
@@ -125,7 +126,7 @@ function dropBlock(key){
     var store=transaction.objectStore('block');
     var request =store.delete(parseInt(key));
     request.onsuccess = function (event) {
-        console.log("dropBlock sucess="+key);
+        //console.log("dropBlock sucess="+key);
     }
 }
 
@@ -137,7 +138,7 @@ function handleUserData(table,data){
         serverUrl=data[0].serverUrl;
         maxFileSize=data[0].maxFileSize;
         maxThread=data[0].maxThread;
-        tempWorkDir=data[0].tempWorkDir+"/";
+        tempWorkDir=data[0].tempWorkDir;
         if(userId!=="0"){
             loginSuccess();
         }
@@ -147,7 +148,8 @@ function handleUserData(table,data){
             maxFileSize:1,
             maxThread:5,
             initTime:new Date().toDateString(),
-            serverUrl:serverUrl
+            serverUrl:serverUrl,
+            tempWorkDir:tempWorkDir
         }
         db.transaction(table,'readwrite').objectStore(table).put(newData);
     }
@@ -156,10 +158,11 @@ function handleFileData(table,data){
     var fileNum=0;
     if(data.length>0){
         for(var i=0;i<data.length;i++){
-            if(data[i].status==="finish"){
+            if(data[i].status=="finish"){
                 $('#fileHistoryTable').DataTable().row.add(data[i]).draw();
             }else{
                 fileNum++;
+                //console.log(data[i]);
                 $('#fileTable').DataTable().row.add(data[i]).draw();
             }
         }
@@ -175,7 +178,7 @@ function updateDbServerUrl(table,key){
     request.onsuccess=function(e){
         var data=e.target.result;
         data.serverUrl=serverUrl;
-        store.update(data);
+        store.put(data);
     };
 }
 function updateDb(table,key,data){
@@ -210,6 +213,9 @@ function deleteDataByKey(table,key,callbackFunc){
     request.onsuccess = function (event) {
         callbackFunc();
     }
+    request.onerror=function(error){
+        //console.log(error);
+    }
 }
 function getUserInfo(){
     var dbName="fileTransfer";
@@ -217,7 +223,6 @@ function getUserInfo(){
     var store;
     var request = window.indexedDB.open(dbName, dbVersion);
     request.onsuccess = function (event) {
-        console.log("Success creating/accessing IndexedDB database");
         db =event.target.result;  ;
         var transaction = db.transaction("user");
         var objectStore = transaction.objectStore("user");
@@ -238,7 +243,7 @@ function getUserInfo(){
                 serverUrl=data[0].serverUrl;
                 maxFileSize=data[0].maxFileSize;
                 maxThread=data[0].maxThread;
-                tempWorkDir=data[0].tempWorkDir+"/";
+                tempWorkDir=data[0].tempWorkDir;
                 $('#usernameDiv').val(username);
                 $('#serverUrl').val(serverUrl);
                 $('#maxFileSize').val(maxFileSize);
@@ -280,6 +285,7 @@ function changeServerUrl(){
         updateDbServerUrl("user",userKey);
     }
 }
+
 function login(){
     var username=$('#username').val();
     var password=$('#password').val();
@@ -293,7 +299,7 @@ function login(){
             //console.log(resp.body);
             var json=resp.body;
             if(json.result){
-                if(userId==="0"){
+                if(userId=="0"){
                     deleteDataByKey("user",userKey,function(){
                         var newData={
                             id:json.id,
@@ -303,7 +309,7 @@ function login(){
                             maxThread:5,
                             initTime:new Date().toDateString(),
                             serverUrl:serverUrl,
-                            tempWorkDir:nw.App.dataPath
+                            tempWorkDir:tempWorkDir
                         }
                         insertData("user",newData,function(){
                            loginSuccess();
@@ -312,7 +318,8 @@ function login(){
 
                 }
             }else{
-                console.log(resp.body);
+                showNotification("./package/icons/camera.png","登录提示","用户名或密码不正确!");
+                //console.log(resp.body);
             }
         }
 
@@ -357,7 +364,7 @@ function dropOneFile(key){
     var store=transaction.objectStore('file');
     var request =store.delete(parseInt(key));
     request.onsuccess = function (event) {
-        console.log("dropOneFile sucess="+key);
+        //console.log("dropOneFile sucess="+key);
     }
 }
 var deleteFolderRecursive = function(path) {
@@ -461,7 +468,7 @@ function saveConfig(){
             data.maxThread=maxThread;
             data.tempWorkDir=tempWorkDir;
             store.put(data);
-            alert("配置保存成功!");
+            showNotification("./package/icons/coffee.png","配置提示","配置保存成功!");
         };
     }
 
@@ -515,7 +522,7 @@ function beginTransFer(){
         }
     });
     if(needNum==0){
-        alert("请选择文件");
+        showNotification("./package/icons/coffee.png","信息提示","请先选择文件目录!");
         return true;
     }
     $('#fileSimple').fileinput('disable');
@@ -550,19 +557,18 @@ function beginTransFer(){
         }else{
             d.isSplitOver=true;
         }
-    } );
+    });
     data.each( function (d) {
         if(d.status==""){
             d.status="split";
         }
-    } );
+    });
     table.clear().draw();
     data.each(function (d) {
         $('#fileTable').DataTable().row.add(d).draw();
     } );
 }
 function uploadFiles(fileData){
-    console.log("begin uploadFiles");
     fileData.each(function(d){
         $('#tipSpan').html("与服务器同步文件信息:"+ d.name);
         if(d.status=="split"){
@@ -621,6 +627,7 @@ function startUploadBlocks(table,data){
 }
 function uploadBlockQueue(){
     $('#message-box-success').hide();
+    allFileData=$("#fileTable").DataTable().data();
     if(allblocks.length>0){
         for (var i = 0;i<maxThread;i++){
             setTimeout(function(){
@@ -657,7 +664,7 @@ function uploadOneBlock(){
                         var all=filesBlockNum[blockInfo.fileKey];
                         var remain=filesRemain[blockInfo.fileKey];
                         var percent=parseInt(((all-remain)/all)*100+"");
-                        console.log('#progressBar'+ blockInfo.fileKey+" change to "+percent);
+                        //console.log('#progressBar'+ blockInfo.fileKey+" change to "+percent);
                         $('#progressBar'+ blockInfo.fileKey).attr('aria-valuenow', percent);
                         $('#progressBar'+ blockInfo.fileKey).css('width', percent + '%');
                         $('#progressBar'+ blockInfo.fileKey).html(percent+"%");
@@ -666,6 +673,11 @@ function uploadOneBlock(){
                         //完成一个file的状态
 
                         if(filesRemain[blockInfo.fileKey]==0) {
+                            allFileData.each(function(d){
+                                if(d.key==blockInfo.fileKey){
+                                    d.status = "finish";
+                                }
+                            });
                             updateDbWithCallback('file', blockInfo.fileKey, function (data) {
                                 data.status = "finish";
                             });
@@ -725,4 +737,8 @@ var showNotification = function (icon, title, body) {
     };
 
     return notification;
+}
+function setTempWorkDir(dir){
+    //console.log("setting dir="+dir);
+    tempWorkDir=dir;
 }
