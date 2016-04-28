@@ -20,8 +20,6 @@ var globalShowFileKey;
 
 var fs = require('fs');
 var needle = require('needle');
-
-
 function initDB(){
     var dbName="fileTransfer";
     var dbVersion = 1;
@@ -250,6 +248,7 @@ function getUserInfo(){
                 $('#maxFileSize').val(maxFileSize);
                 $('#maxThread').val(maxThread);
                 $('#tempWorkDir').val(tempWorkDir);
+
                 needle.post(serverUrl+"microseism/catchProjects", 'id='+userId, {}, function(err, resp) {
                     var json=resp.body;
                     if(json == null)return;
@@ -291,44 +290,51 @@ function login(){
     var username=$('#username').val();
     var password=$('#password').val();
     //@todo cookie
-/*    needle.post('http://localhost:8080/MDSRealrig', 'foo=bar', {}, function(err, resp) {
-        console.log(resp.cookies);
-    });*/
-    needle.post(serverUrl+'login/clientLogin', "username="+username+"&password="+password, {}, function(err, resp) {
-        // you can pass params as a string or as an object.
-        if (!err && resp.statusCode == 200){
-            //console.log(resp.body);
-            var json=resp.body;
-            //console.log(json);
-            if(json.result){
-                if(userId=="0"){
-                    //console.log("begin delete");
-                    deleteDataByKey("user",userKey,function(){
-                        //console.log("after delete ");
-                        var newData={
-                            id:json.id,
-                            username:json.username,
-                            name:json.name,
-                            maxFileSize:1,
-                            maxThread:5,
-                            initTime:new Date().toDateString(),
-                            serverUrl:serverUrl,
-                            tempWorkDir:tempWorkDir
-                        }
-                        insertData("user",newData,function(){
-                            //console.log("after insert ");
-                           loginSuccess();
-                        });
-                    });
 
+    try{
+        needle.post(serverUrl+'login/clientLogin', "username="+username+"&password="+password, {}, function(err, resp) {
+            // you can pass params as a string or as an object.
+            if (!err && resp.statusCode == 200){
+                //console.log(resp.body);
+                var json=resp.body;
+                //console.log(json);
+                //showNotification("./package.nw/icons/camera.png","登录提示",json.result);
+                if(json.result){
+                    //showNotification("./package.nw/icons/camera.png","登录提示",userId);
+                    if(userId=="0"){
+                        //console.log("begin delete");
+                        deleteDataByKey("user",userKey,function(){
+                            //console.log("after delete ");
+                            var newData={
+                                id:json.id,
+                                username:json.username,
+                                name:json.name,
+                                maxFileSize:1,
+                                maxThread:5,
+                                initTime:new Date().toDateString(),
+                                serverUrl:serverUrl,
+                                tempWorkDir:tempWorkDir
+                            }
+                            insertData("user",newData,function(){
+                                //console.log("after insert ");
+                                loginSuccess();
+                            });
+                        });
+
+                    }
+                }else{
+                    showNotification("./package.nw/icons/camera.png","登录提示","用户名或密码不正确!");
+                    //console.log(resp.body);
                 }
             }else{
-                showNotification("./package.nw/icons/camera.png","登录提示","用户名或密码不正确!");
-                //console.log(resp.body);
+                showNotification("./package.nw/icons/camera.png","登录提示",err);
             }
-        }
 
-    });
+        });
+    }catch(error){
+        showNotification("./package.nw/icons/camera.png","登录提示",error);
+    }
+
 }
 function addFileData(data,callback){
     var transaction=db.transaction('file','readwrite');
@@ -586,6 +592,7 @@ function uploadFiles(fileData){
 }
 function uploadInitFile(data,callbackFunc,fileData){
     ////params（name,projectId,path,size,splitStartNum,splitEndNum,md5）
+
     var fileParam = {
         name:data.name,projectId:data.projectId,path:data.path,size:data.realsize,
         splitStartNum:data.splitStartNum,splitEndNum:data.splitEndNum,md5:data.md5
@@ -649,6 +656,7 @@ function uploadBlockQueue(){
     }
 }
 function uploadOneBlock(){
+
     if(allblocks.length>0){
         var blockInfo = allblocks.shift();//pop()
         if (blockInfo.status == "finish") {
