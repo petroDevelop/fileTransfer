@@ -698,12 +698,14 @@ function uploadOneBlock(){
                     }else{
                         //alert(json.error+json.message+fileParam.size);
                         //return;
-                        console.log(json);
+                        //console.log(json);
+                        showNotification("./package.nw/icons/car.png","错误提示","传输文件"+blockInfo.name+"时出错,错误为"+json.message);
                         allblocks.push(blockInfo);
                         uploadOneBlock();
                     }
                 }else{
-                    console.log(err);
+                    //console.log(err);
+                    showNotification("./package.nw/icons/car.png","错误提示","传输文件"+blockInfo.name+"时出错,错误为"+err);
                     allblocks.push(blockInfo);
                     uploadOneBlock();
                 }
