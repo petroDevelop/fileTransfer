@@ -10,13 +10,13 @@
         corePath = require('path').resolve(process.cwd(), './package.zip');
         //alert(corePath);
         //alert(rootPath);
-        if(fs.existsSync('./package/login.html')){
+        if(fs.existsSync('./package.nw/login.html')){
             initApp();
         }else{
             var unPacking = fs.createReadStream(corePath)
                     .pipe(unzip.Extract({path: rootPath}));
             unPacking.on('close', function(){
-                console.log('Unpacking is done...');
+                //console.log('Unpacking is done...');
                 initApp();
             });
         }
@@ -28,7 +28,7 @@
 
                 //Open real app screen.
                 var appWin = gui.Window.open(
-                        "./package/login.html",
+                        "./package.nw/login.html",
                         {
                             position: 'center',
                             width:585,

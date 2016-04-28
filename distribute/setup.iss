@@ -7,6 +7,7 @@
 #define MyAppPublisher "Mds, Inc."
 #define MyAppURL "http://www.mds.com.cn/"
 #define MyAppExeName "filetransfer.exe"
+#define MyDestDir "C:\fileTransfer"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -35,7 +36,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 0,6.1
 
 [Files]
-Source: "C:\grails-application\fileTransfer\distribute\nwjs-sdk-v0.14.0-win-x64\build\filetransfer\win64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\grails-application\fileTransfer\distribute\nwjs-sdk-v0.14.0-win-x64\build\filetransfer\win64\*"; DestDir: "{#MyDestDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
