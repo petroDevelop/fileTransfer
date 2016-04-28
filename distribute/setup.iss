@@ -21,7 +21,9 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={pf}\{#MyAppName}
+;DefaultDirName={pf}\{#MyAppName}
+DefaultDirName={#MyDestDir}\{#MyAppName}
+DisableDirPage=yes
 DefaultGroupName={#MyAppName}
 OutputBaseFilename={#MyAppName}-{#MyAppVersion}-{#MyAppType}
 ;Password=123456
@@ -36,7 +38,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 0,6.1
 
 [Files]
-Source: "C:\grails-application\fileTransfer\distribute\nwjs-sdk-v0.14.0-win-x64\build\filetransfer\win64\*"; DestDir: "{#MyDestDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\grails-application\fileTransfer\distribute\nwjs-v0.14.2-win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

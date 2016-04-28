@@ -62,7 +62,7 @@ $(function() {
             var file=files[fileIndex];
             var fileId=0;
             //压缩目录为zip
-            showNotification("./package/icons/coffee.png", "压缩目录", '开始压缩目录'+file.name);
+            showNotification("./package.nw/icons/coffee.png", "压缩目录", '开始压缩目录'+file.name);
             var archiver = require('archiver');
             var zipName=file.name+"("+timeStamp2String()+").zip";
             if(!fs.existsSync(tempWorkDir+"fileFolder/zip/"+projectId+"/")){
@@ -99,7 +99,7 @@ $(function() {
                     data.key=key;
                     $('#fileTable').DataTable().row.add(data).draw();
                 });
-                showNotification("./package/icons/camera.png", "压缩目录", '目录压缩完成');
+                showNotification("./package.nw/icons/camera.png", "压缩目录", '目录压缩完成');
                 $('#fileSimple').fileinput('enable');
                 $("#fileUpload").removeAttr("disabled");
             });

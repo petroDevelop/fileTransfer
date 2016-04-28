@@ -53,7 +53,7 @@ function initDB(){
             store.createIndex('nameIndex','name',{unique:false});
             //store.createIndex('fileKeyIndex','fileKey',{unique:false});
         }
-        showNotification("./package/icons/car.png","提示","数据库新建成功");
+        showNotification("./package.nw/icons/car.png","提示","数据库新建成功");
         //console.log('DB version changed to '+dbVersion);
         setTimeout(function(){
             getAll("user",handleUserData);
@@ -138,7 +138,7 @@ function handleUserData(table,data){
         serverUrl=data[0].serverUrl;
         maxFileSize=data[0].maxFileSize;
         maxThread=data[0].maxThread;
-        tempWorkDir=data[0].tempWorkDir+"/";
+        tempWorkDir=data[0].tempWorkDir;
         if(userId!=="0"){
             loginSuccess();
         }
@@ -240,6 +240,7 @@ function getUserInfo(){
                 userId=data[0].id;
                 userKey=data[0].key;
                 username=data[0].username;
+                $('#usernameDiv').html(username);
                 serverUrl=data[0].serverUrl;
                 maxFileSize=data[0].maxFileSize;
                 maxThread=data[0].maxThread;
@@ -298,9 +299,12 @@ function login(){
         if (!err && resp.statusCode == 200){
             //console.log(resp.body);
             var json=resp.body;
+            //console.log(json);
             if(json.result){
                 if(userId=="0"){
+                    //console.log("begin delete");
                     deleteDataByKey("user",userKey,function(){
+                        //console.log("after delete ");
                         var newData={
                             id:json.id,
                             username:json.username,
@@ -312,13 +316,14 @@ function login(){
                             tempWorkDir:tempWorkDir
                         }
                         insertData("user",newData,function(){
+                            //console.log("after insert ");
                            loginSuccess();
                         });
                     });
 
                 }
             }else{
-                showNotification("./package/icons/camera.png","登录提示","用户名或密码不正确!");
+                showNotification("./package.nw/icons/camera.png","登录提示","用户名或密码不正确!");
                 //console.log(resp.body);
             }
         }
@@ -468,7 +473,7 @@ function saveConfig(){
             data.maxThread=maxThread;
             data.tempWorkDir=tempWorkDir;
             store.put(data);
-            showNotification("./package/icons/coffee.png","配置提示","配置保存成功!");
+            showNotification("./package.nw/icons/coffee.png","配置提示","配置保存成功!");
         };
     }
 
@@ -522,7 +527,7 @@ function beginTransFer(){
         }
     });
     if(needNum==0){
-        showNotification("./package/icons/coffee.png","信息提示","请先选择文件目录!");
+        showNotification("./package.nw/icons/coffee.png","信息提示","请先选择文件目录!");
         return true;
     }
     $('#fileSimple').fileinput('disable');
@@ -629,12 +634,14 @@ function uploadBlockQueue(){
     $('#message-box-success').hide();
     allFileData=$("#fileTable").DataTable().data();
     if(allblocks.length>0){
+        uploadOneBlock();
+        /*
         for (var i = 0;i<maxThread;i++){
             setTimeout(function(){
                 uploadOneBlock();
             },3);
-
         }
+        */
     }else{
         //允许操作 按钮和选择框
         $('#fileSimple').fileinput('enable');
@@ -689,9 +696,16 @@ function uploadOneBlock(){
                         }
                         uploadOneBlock();
                     }else{
-                        alert(json.error+json.message+fileParam.size);
+                        //alert(json.error+json.message+fileParam.size);
                         //return;
-                    };
+                        console.log(json);
+                        allblocks.push(blockInfo);
+                        uploadOneBlock();
+                    }
+                }else{
+                    console.log(err);
+                    allblocks.push(blockInfo);
+                    uploadOneBlock();
                 }
             });
         }
@@ -741,4 +755,11 @@ var showNotification = function (icon, title, body) {
 function setTempWorkDir(dir){
     //console.log("setting dir="+dir);
     tempWorkDir=dir;
+}
+function cleanDbAndReload(){
+    var dbName="fileTransfer";
+    db.close();
+    window.indexedDB.deleteDatabase(dbName);
+    var gui1 = require("nw.gui");
+    gui1.App.quit();
 }
